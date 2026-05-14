@@ -1,8 +1,8 @@
-# docpilot-mcp
+# docpilot
 
 > Local-first MCP server that turns any public GitHub repository into fresh, version-pinned documentation for AI coding assistants.
 
-`docpilot-mcp` is the npm package; `docpilot` is the binary. Distributed for `npx docpilot-mcp` use in MCP-capable clients (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI).
+`docpilot` is the npm package; `docpilot` is the binary. Distributed for `npx docpilot` use in MCP-capable clients (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI).
 
 For installation, configuration, tool reference, and troubleshooting see the top-level [README](../../README.md) and [docs/](../../docs/).
 
@@ -14,7 +14,7 @@ For installation, configuration, tool reference, and troubleshooting see the top
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"]
+      "args": ["-y", "docpilot"]
     }
   }
 }
@@ -42,7 +42,7 @@ src/
 
 ```bash
 pnpm install
-pnpm --filter docpilot-mcp dev          # run against a stub MCP client
-pnpm --filter docpilot-mcp test         # unit tests
-pnpm --filter docpilot-mcp test:integration   # hits real GitHub (requires GITHUB_TOKEN)
+pnpm --filter docpilot dev          # run against a stub MCP client
+pnpm --filter docpilot test         # unit tests
+pnpm --filter docpilot test:integration   # hits real GitHub (requires GITHUB_TOKEN)
 ```

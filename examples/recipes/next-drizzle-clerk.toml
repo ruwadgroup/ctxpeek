@@ -1,7 +1,7 @@
 # Next.js + Drizzle + Clerk stack.
 #
 # Install:
-#   npx -y docpilot-mcp recipe install ./next-drizzle-clerk.toml
+#   npx -y docpilot recipe install ./next-drizzle-clerk.toml
 
 [[repo]]
 spec  = "vercel/next.js@v15.0.0"

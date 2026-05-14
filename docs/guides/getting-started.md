@@ -19,7 +19,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"],
+      "args": ["-y", "docpilot"],
       "env": {
         "GITHUB_TOKEN": "ghp_…"
       }
@@ -39,7 +39,7 @@ Edit `~/.cursor/mcp.json`:
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"]
+      "args": ["-y", "docpilot"]
     }
   }
 }
@@ -55,7 +55,7 @@ Add to `mcp.servers` in your settings:
     "docpilot": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"]
+      "args": ["-y", "docpilot"]
     }
   }
 }
@@ -64,7 +64,7 @@ Add to `mcp.servers` in your settings:
 ### Codex CLI
 
 ```bash
-codex mcp add docpilot -- npx -y docpilot-mcp
+codex mcp add docpilot -- npx -y docpilot
 ```
 
 ### Windsurf
@@ -74,7 +74,7 @@ Same `mcpServers` JSON shape as Claude Desktop / Cursor.
 ## 2. Verify the install
 
 ```bash
-npx -y docpilot-mcp doctor
+npx -y docpilot doctor
 ```
 
 Expected output (abridged):
@@ -129,7 +129,7 @@ alias = "drizzle"
 ```
 
 ```bash
-npx -y docpilot-mcp recipe install ./.docpilot.recipe.toml
+npx -y docpilot recipe install ./.docpilot.recipe.toml
 ```
 
 The next session has zero cold-start latency for those repos.

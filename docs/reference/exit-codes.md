@@ -17,4 +17,4 @@ The `docpilot` CLI follows standard POSIX exit-code conventions.
 | `77` | Permission denied (insufficient PAT scope)                      |
 | `78` | Configuration error (token discovery exhausted; no auth)        |
 
-The MCP server (`docpilot-mcp`) exits `0` on a clean shutdown via SIGTERM/SIGINT, and `1` on an unhandled exception. It never exits `0` while the stdio transport is still attached.
+The MCP server (`docpilot`) exits `0` on a clean shutdown via SIGTERM/SIGINT, and `1` on an unhandled exception. It never exits `0` while the stdio transport is still attached.

@@ -28,13 +28,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Pack
-        run: pnpm --filter docpilot-mcp pack --pack-destination .
+        run: pnpm --filter docpilot pack --pack-destination .
 
       - name: Smoke — bash
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          tarball=$(ls docpilot-mcp-*.tgz | head -n1)
+          tarball=$(ls docpilot-*.tgz | head -n1)
           npm install -g "./$tarball"
           docpilot --version
           docpilot --help
@@ -43,7 +43,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          for /f "delims=" %%i in ('dir /b docpilot-mcp-*.tgz') do set TARBALL=%%i
+          for /f "delims=" %%i in ('dir /b docpilot-*.tgz') do set TARBALL=%%i
           npm install -g .\%TARBALL%
           cmd /c npx -y docpilot --version
           cmd /c npx -y docpilot --help

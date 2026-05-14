@@ -1,18 +1,18 @@
 {
-  "name": "docpilot-mcp",
+  "name": "docpilot",
   "version": "0.0.0",
   "description": "Local-first MCP server that turns any public GitHub repository into fresh, version-pinned documentation for AI coding assistants.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/docpilot/docpilot#readme",
+  "homepage": "https://github.com/tamimbinhakim/docpilot#readme",
   "bugs": {
-    "url": "https://github.com/docpilot/docpilot/issues"
+    "url": "https://github.com/tamimbinhakim/docpilot/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/docpilot/docpilot.git",
-    "directory": "packages/docpilot-mcp"
+    "url": "git+https://github.com/tamimbinhakim/docpilot.git",
+    "directory": "packages/docpilot"
   },
-  "author": "docpilot contributors",
+  "author": "Tamim Bin Hakim <tamimbinhakim.work@gmail.com>",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -31,8 +31,7 @@
     "stdio"
   ],
   "bin": {
-    "docpilot": "./dist/cli.js",
-    "docpilot-mcp": "./dist/server.js"
+    "docpilot": "./dist/server.js"
   },
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
@@ -58,7 +57,7 @@
     "test:ci": "vitest run --reporter=default --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit",
-    "doctor": "node dist/cli.js doctor"
+    "doctor": "node dist/server.js doctor"
   },
   "dependencies": {
     "@docpilot/core": "workspace:*",

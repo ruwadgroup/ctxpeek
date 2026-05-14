@@ -118,7 +118,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter docpilot-mcp test:integration
+      - run: pnpm --filter docpilot test:integration
         env:
           GITHUB_TOKEN: ${{ secrets.INTEGRATION_GITHUB_TOKEN }}
 

@@ -150,12 +150,12 @@ A few decisions worth calling out:
 
 ## Where to read the code
 
-- [`packages/docpilot-mcp/src/server.ts`](../../packages/docpilot-mcp/src/server.ts)
-- [`packages/docpilot-mcp/src/tools/`](../../packages/docpilot-mcp/src/tools/)
-- [`packages/docpilot-mcp/src/fetch/strategy.ts`](../../packages/docpilot-mcp/src/fetch/strategy.ts)
-- [`packages/docpilot-mcp/src/resolve/orchestrator.ts`](../../packages/docpilot-mcp/src/resolve/orchestrator.ts)
-- [`packages/docpilot-mcp/src/cache/`](../../packages/docpilot-mcp/src/cache/)
-- [`packages/docpilot-mcp/src/index/`](../../packages/docpilot-mcp/src/index/)
+- [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts)
+- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/)
+- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts)
+- [`packages/docpilot/src/resolve/orchestrator.ts`](../../packages/docpilot/src/resolve/orchestrator.ts)
+- [`packages/docpilot/src/cache/`](../../packages/docpilot/src/cache/)
+- [`packages/docpilot/src/index/`](../../packages/docpilot/src/index/)
 - [`packages/docpilot-core/`](../../packages/docpilot-core/)
 
 If you read those and still have a "wait, how does X work?" question, that's a docs bug. Please file it.

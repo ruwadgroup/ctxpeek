@@ -3,7 +3,7 @@
 When in doubt, run the doctor:
 
 ```bash
-npx -y docpilot-mcp doctor
+npx -y docpilot doctor
 ```
 
 It catches roughly 80% of "it just doesn't work" reports.
@@ -19,7 +19,7 @@ The single most common failure across MCP clients on Windows. `npx` is a `.cmd` 
   "mcpServers": {
     "docpilot": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "docpilot-mcp"]
+      "args": ["/c", "npx", "-y", "docpilot"]
     }
   }
 }
@@ -27,9 +27,9 @@ The single most common failure across MCP clients on Windows. `npx` is a `.cmd` 
 
 Same fix applies to Cursor, Cline, VS Code Insiders, Windsurf, and Claude Desktop.
 
-## `command not found: docpilot-mcp` after install
+## `command not found: docpilot` after install
 
-You probably installed globally with a tool that doesn't expose binaries to `PATH`. Use `npx -y docpilot-mcp` directly in the client config — that always works because npm cache resolution doesn't depend on `PATH`.
+You probably installed globally with a tool that doesn't expose binaries to `PATH`. Use `npx -y docpilot` directly in the client config — that always works because npm cache resolution doesn't depend on `PATH`.
 
 ## Rate-limited
 
@@ -41,7 +41,7 @@ If you see "GitHub: API rate limit exceeded for {ip}", you're running anonymous 
 Check your remaining budget any time:
 
 ```bash
-npx -y docpilot-mcp cache status
+npx -y docpilot cache status
 ```
 
 The status output includes a "GitHub remaining: N/5000" line.
@@ -78,8 +78,8 @@ rm -rf ~/.cache/docpilot           # Linux
 2. Run docpilot directly to surface the underlying error:
 
    ```bash
-   npx -y docpilot-mcp
-   # Should print "docpilot-mcp: server skeleton — no tools registered yet"
+   npx -y docpilot
+   # Should print "docpilot: server skeleton — no tools registered yet"
    # and wait on stdin.
    ```
 
@@ -102,8 +102,8 @@ This is a token-budget guardrail, not a hard limit.
 
 ## Still stuck?
 
-Open an issue at <https://github.com/docpilot/docpilot/issues> with:
+Open an issue at <https://github.com/tamimbinhakim/docpilot/issues> with:
 
-1. `npx -y docpilot-mcp doctor` output (redact your token)
+1. `npx -y docpilot doctor` output (redact your token)
 2. Your MCP client + version
 3. The exact failing tool call

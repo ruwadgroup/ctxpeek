@@ -4,7 +4,7 @@
 
 Highest precedence first:
 
-1. CLI args to `docpilot-mcp` (`--token`, `--cache-dir`, `--no-cdn`, …)
+1. CLI args to `docpilot` (`--token`, `--cache-dir`, `--no-cdn`, …)
 2. `.docpilot.toml` in cwd or any ancestor directory up to `$HOME`
 3. `~/.config/docpilot/config.toml`
 4. Environment variables
@@ -89,7 +89,7 @@ prewarm_from_lockfile = true             # opt-in via MCP `roots` capability
 ## CLI flags
 
 ```text
-docpilot-mcp [options]
+docpilot [options]
 
   --token <token>          override GITHUB_TOKEN
   --cache-dir <path>       override [cache] dir

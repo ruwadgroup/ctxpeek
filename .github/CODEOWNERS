@@ -3,28 +3,31 @@
 # Each line is a path pattern followed by one or more owners.
 # Owners are notified for review when matching files change.
 # Last matching pattern takes precedence.
+#
+# Solo-maintainer setup for now. When a team forms, swap @tamimbinhakim
+# for @<org>/<team> handles per area.
 
 # Default — anything not matched below.
-*                                   @docpilot/maintainers
+*                                   @tamimbinhakim
 
 # Packages
-/packages/docpilot-mcp/             @docpilot/maintainers
-/packages/docpilot-core/            @docpilot/maintainers
+/packages/docpilot/                 @tamimbinhakim
+/packages/docpilot-core/            @tamimbinhakim
 
-# Subsystems with potential domain owners
-/packages/docpilot-mcp/src/fetch/   @docpilot/fetch-owners
-/packages/docpilot-mcp/src/cache/   @docpilot/cache-owners
-/packages/docpilot-mcp/src/index/   @docpilot/index-owners
-/packages/docpilot-mcp/src/resolve/ @docpilot/resolver-owners
+# Subsystems (split out when there are real owners)
+/packages/docpilot/src/fetch/       @tamimbinhakim
+/packages/docpilot/src/cache/       @tamimbinhakim
+/packages/docpilot/src/index/       @tamimbinhakim
+/packages/docpilot/src/resolve/     @tamimbinhakim
 
 # CI / build
-/.github/                           @docpilot/maintainers
-/.husky/                            @docpilot/maintainers
-*.config.js                         @docpilot/maintainers
-*.toml                              @docpilot/maintainers
+/.github/                           @tamimbinhakim
+/.husky/                            @tamimbinhakim
+*.config.js                         @tamimbinhakim
+*.toml                              @tamimbinhakim
 
 # Docs
-/docs/                              @docpilot/docs-owners
-/README.md                          @docpilot/docs-owners
-/CONTRIBUTING.md                    @docpilot/maintainers
-/SECURITY.md                        @docpilot/maintainers
+/docs/                              @tamimbinhakim
+/README.md                          @tamimbinhakim
+/CONTRIBUTING.md                    @tamimbinhakim
+/SECURITY.md                        @tamimbinhakim

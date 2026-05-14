@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "description": "Shared types, schemas, and errors for docpilot. Internal package — not published independently in v0.1.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/docpilot/docpilot/tree/main/packages/docpilot-core",
+  "homepage": "https://github.com/tamimbinhakim/docpilot/tree/main/packages/docpilot-core",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/docpilot/docpilot.git",
+    "url": "git+https://github.com/tamimbinhakim/docpilot.git",
     "directory": "packages/docpilot-core"
   },
   "type": "module",

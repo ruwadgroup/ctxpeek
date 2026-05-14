@@ -2,7 +2,7 @@
 
 Shared types, schemas, and error classes used by the docpilot MCP server.
 
-This package is **internal** to the docpilot monorepo. It is not published to npm in v0.1; consumers should depend on `docpilot-mcp` directly.
+This package is **internal** to the docpilot monorepo. It is not published to npm in v0.1; consumers should depend on `docpilot` directly.
 
 ## Layout
 

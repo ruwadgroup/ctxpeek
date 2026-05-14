@@ -6,13 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug. Please run `npx -y docpilot-mcp doctor` and paste the output below (redact your token).
+        Thanks for taking the time to file a bug. Please run `npx -y docpilot doctor` and paste the output below (redact your token).
 
   - type: textarea
     id: doctor
     attributes:
       label: docpilot doctor output
-      description: Output of `npx -y docpilot-mcp doctor` (redact your token)
+      description: Output of `npx -y docpilot doctor` (redact your token)
       render: text
     validations:
       required: true
@@ -55,5 +55,5 @@ body:
       options:
         - label: I searched existing issues and didn't find a duplicate
           required: true
-        - label: I'm on the latest version (`npx -y docpilot-mcp@latest --version`)
+        - label: I'm on the latest version (`npx -y docpilot@latest --version`)
           required: true

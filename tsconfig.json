@@ -3,6 +3,6 @@
   "files": [],
   "references": [
     { "path": "./packages/docpilot-core" },
-    { "path": "./packages/docpilot-mcp" }
+    { "path": "./packages/docpilot" }
   ]
 }

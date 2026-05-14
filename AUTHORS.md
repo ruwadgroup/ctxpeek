@@ -8,4 +8,4 @@ A full list is available via:
 git shortlog -sne
 ```
 
-Or on GitHub: <https://github.com/docpilot/docpilot/graphs/contributors>.
+Or on GitHub: <https://github.com/tamimbinhakim/docpilot/graphs/contributors>.

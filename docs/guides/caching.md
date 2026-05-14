@@ -45,14 +45,14 @@ Two refs of the same repo share files (most do). The blob store keys by `sha256(
 Force a GC pass:
 
 ```bash
-npx -y docpilot-mcp cache gc
+npx -y docpilot cache gc
 ```
 
 Inspect cache state:
 
 ```bash
-npx -y docpilot-mcp cache status
-npx -y docpilot-mcp cache status vercel/next.js
+npx -y docpilot cache status
+npx -y docpilot cache status vercel/next.js
 ```
 
 ## Concurrency

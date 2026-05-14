@@ -3,7 +3,7 @@
 Drop-in `.docpilot.recipe.toml` bundles for common stacks. Install one with:
 
 ```bash
-npx -y docpilot-mcp recipe install ./next-drizzle-clerk.toml
+npx -y docpilot recipe install ./next-drizzle-clerk.toml
 ```
 
 | Recipe | Stack |

@@ -1,4 +1,4 @@
-# docpilot-mcp
+# docpilot
 
 ## 0.0.0
 

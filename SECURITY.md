@@ -15,7 +15,7 @@ Please **do not** open a public GitHub issue for security reports.
 
 Instead, use one of:
 
-1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/docpilot/docpilot/security/advisories/new>.
+1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/tamimbinhakim/docpilot/security/advisories/new>.
 2. Email <security@docpilot.dev> with a description and reproduction steps.
 
 We aim to acknowledge receipt within 72 hours and to provide a remediation plan within 7 days for high-severity issues.
@@ -24,7 +24,7 @@ We aim to acknowledge receipt within 72 hours and to provide a remediation plan 
 
 In scope:
 
-- The `docpilot-mcp` npm package and its runtime behavior
+- The `docpilot` npm package and its runtime behavior
 - The `docpilot` CLI binary
 - Configuration parsing (`.docpilot.toml`, `.docpilot.recipe.toml`)
 - Cache integrity (content-addressed blob store)

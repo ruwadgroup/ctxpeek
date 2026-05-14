@@ -35,10 +35,10 @@ Aliases are resolved to the underlying spec at tool-call time, so `fetch_doc("ne
 
 ```bash
 # From a local file
-npx -y docpilot-mcp recipe install ./.docpilot.recipe.toml
+npx -y docpilot recipe install ./.docpilot.recipe.toml
 
 # From a URL (gist, repo, anything)
-npx -y docpilot-mcp recipe install \
+npx -y docpilot recipe install \
   https://github.com/your-org/stack/raw/main/.docpilot.recipe.toml
 ```
 

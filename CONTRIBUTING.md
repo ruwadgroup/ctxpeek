@@ -10,9 +10,9 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By particip
 
 For **security issues**, please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
-For everything else, open an issue at <https://github.com/docpilot/docpilot/issues>. Pick the matching template (bug, feature, docs). Include:
+For everything else, open an issue at <https://github.com/tamimbinhakim/docpilot/issues>. Pick the matching template (bug, feature, docs). Include:
 
-1. The output of `npx -y docpilot-mcp doctor` (redact your token)
+1. The output of `npx -y docpilot doctor` (redact your token)
 2. Your MCP client + version
 3. The exact failing tool call (or expected behavior)
 
@@ -27,7 +27,7 @@ For everything else, open an issue at <https://github.com/docpilot/docpilot/issu
 ### Clone & install
 
 ```bash
-git clone https://github.com/docpilot/docpilot.git
+git clone https://github.com/tamimbinhakim/docpilot.git
 cd docpilot
 pnpm install
 pnpm build
@@ -37,7 +37,7 @@ pnpm test
 ### Run from source
 
 ```bash
-pnpm --filter docpilot-mcp dev
+pnpm --filter docpilot dev
 ```
 
 This runs the server from `src/` with `tsx watch`. To attach a real MCP client to your local build, point its config at the absolute path:
@@ -47,7 +47,7 @@ This runs the server from `src/` with `tsx watch`. To attach a real MCP client t
   "mcpServers": {
     "docpilot-dev": {
       "command": "node",
-      "args": ["/abs/path/to/docpilot/packages/docpilot-mcp/dist/server.js"],
+      "args": ["/abs/path/to/docpilot/packages/docpilot/dist/server.js"],
     },
   },
 }
@@ -59,7 +59,7 @@ See [README.md](README.md#documentation) for the full doc map. The short version
 
 ```
 packages/
-  docpilot-mcp/        the npm package shipped to users
+  docpilot/        the npm package shipped to users
   docpilot-core/       shared types and errors (internal)
 docs/
   guides/              how-to articles
@@ -93,7 +93,7 @@ pnpm format
 ## Tests
 
 - **Unit tests** (`packages/*/test/unit/**`): vitest, fast, no network. Run via `pnpm test`.
-- **Integration tests** (`packages/docpilot-mcp/test/integration/**`): vitest, hits real GitHub. Skipped in CI unless `GITHUB_TOKEN` is set as a secret. Run locally via `pnpm --filter docpilot-mcp test:integration`.
+- **Integration tests** (`packages/docpilot/test/integration/**`): vitest, hits real GitHub. Skipped in CI unless `GITHUB_TOKEN` is set as a secret. Run locally via `pnpm --filter docpilot test:integration`.
 - **Fixtures** live in `test/fixtures/`. For HTTP, prefer MSW (`msw`) over snapshots of real responses.
 
 A new feature must come with at least one unit test.

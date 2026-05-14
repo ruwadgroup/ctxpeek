@@ -26,7 +26,7 @@ A **fine-grained PAT** with `Contents: Read` on public repositories is enough.
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"],
+      "args": ["-y", "docpilot"],
       "env": { "GITHUB_TOKEN": "github_pat_…" }
     }
   }

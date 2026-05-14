@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "description": "Local-first MCP server that turns any public GitHub repository into fresh, version-pinned documentation for AI coding assistants.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/docpilot/docpilot#readme",
+  "homepage": "https://github.com/tamimbinhakim/docpilot#readme",
   "bugs": {
-    "url": "https://github.com/docpilot/docpilot/issues"
+    "url": "https://github.com/tamimbinhakim/docpilot/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/docpilot/docpilot.git"
+    "url": "git+https://github.com/tamimbinhakim/docpilot.git"
   },
   "type": "module",
   "engines": {
@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "pnpm -r --filter './packages/*' run build",
-    "dev": "pnpm --filter docpilot-mcp run dev",
+    "dev": "pnpm --filter docpilot run dev",
     "test": "pnpm -r --filter './packages/*' run test",
     "test:ci": "pnpm -r --filter './packages/*' run test:ci",
     "typecheck": "pnpm -r --filter './packages/*' run typecheck",

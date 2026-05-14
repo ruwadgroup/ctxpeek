@@ -1,8 +1,13 @@
+<!--
+  TODO: replace with the real logo + landing page once docpilot.dev exists.
+  Until then the title block carries the hero on its own.
+
 <div align="center">
   <a href="https://docpilot.dev" target="_blank">
     <img alt="docpilot" src="https://docpilot.dev/og.png" width="640" />
   </a>
 </div>
+-->
 
 <h1 align="center">docpilot</h1>
 
@@ -17,11 +22,11 @@
 
 <div align="center">
 
-[![CI](https://github.com/docpilot/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/docpilot/docpilot/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/docpilot/docpilot/actions/workflows/codeql.yml/badge.svg)](https://github.com/docpilot/docpilot/actions/workflows/codeql.yml)
-[![npm](https://img.shields.io/npm/v/docpilot-mcp.svg)](https://www.npmjs.com/package/docpilot-mcp)
-[![npm downloads](https://img.shields.io/npm/dm/docpilot-mcp.svg)](https://www.npmjs.com/package/docpilot-mcp)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/docpilot-mcp.svg)](https://bundlephobia.com/package/docpilot-mcp)
+[![CI](https://github.com/tamimbinhakim/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/tamimbinhakim/docpilot/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/tamimbinhakim/docpilot/actions/workflows/codeql.yml/badge.svg)](https://github.com/tamimbinhakim/docpilot/actions/workflows/codeql.yml)
+[![npm](https://img.shields.io/npm/v/docpilot.svg)](https://www.npmjs.com/package/docpilot)
+[![npm downloads](https://img.shields.io/npm/dm/docpilot.svg)](https://www.npmjs.com/package/docpilot)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/docpilot.svg)](https://bundlephobia.com/package/docpilot)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -61,10 +66,10 @@
 - ✅ &nbsp;**Token-efficient.** Markdown by default, ≈75% smaller than equivalent JSON. Every response self-reports `~tokens`.
 - ✅ &nbsp;**Reproducible.** Same `owner/repo@sha` always returns the same bytes.
 - ✅ &nbsp;**No prompt-injection surface.** No third party can author content delivered through docpilot. Period.
-- ✅ &nbsp;**One install.** `npx -y docpilot-mcp`. Drop it into any MCP client.
+- ✅ &nbsp;**One install.** `npx -y docpilot`. Drop it into any MCP client.
 
 ```bash
-npx -y docpilot-mcp
+npx -y docpilot
 ```
 
 <br />
@@ -109,7 +114,7 @@ Context7's strengths — curation, hosted indexing, smart ranking — are precis
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot-mcp"],
+      "args": ["-y", "docpilot"],
       "env": {
         "GITHUB_TOKEN": "ghp_…optional but recommended"
       }
@@ -123,7 +128,7 @@ Context7's strengths — curation, hosted indexing, smart ranking — are precis
 **Codex CLI:**
 
 ```bash
-codex mcp add docpilot -- npx -y docpilot-mcp
+codex mcp add docpilot -- npx -y docpilot
 ```
 
 **Windows note:** `npx` is a shim, not an `.exe`, and several MCP clients fail with `spawn npx ENOENT`. Use the explicit shell wrapper:
@@ -133,13 +138,13 @@ codex mcp add docpilot -- npx -y docpilot-mcp
   "mcpServers": {
     "docpilot": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "docpilot-mcp"]
+      "args": ["/c", "npx", "-y", "docpilot"]
     }
   }
 }
 ```
 
-Run `npx -y docpilot-mcp doctor` once to verify your environment.
+Run `npx -y docpilot doctor` once to verify your environment.
 
 ### 2. Use it from your assistant
 
@@ -197,7 +202,7 @@ Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).
 
 Discovery (highest precedence first):
 
-1. CLI args to `docpilot-mcp`
+1. CLI args to `docpilot`
 2. `.docpilot.toml` in cwd or any ancestor up to `$HOME`
 3. `~/.config/docpilot/config.toml`
 4. Env vars
@@ -229,7 +234,7 @@ Full reference: [`docs/reference/configuration.md`](docs/reference/configuration
 A "recipe" is a shareable bundle of pre-pinned repos. Pre-warm the cache for a stack with one command:
 
 ```bash
-npx -y docpilot-mcp recipe install ./.docpilot.recipe.toml
+npx -y docpilot recipe install ./.docpilot.recipe.toml
 ```
 
 ```toml
@@ -296,12 +301,12 @@ Every outbound host is logged to a rotating `network.log` (1 MB cap) under your 
 ## Development
 
 ```bash
-git clone https://github.com/docpilot/docpilot.git
+git clone https://github.com/tamimbinhakim/docpilot.git
 cd docpilot
 pnpm install
 pnpm build
 pnpm test
-pnpm dev          # runs docpilot-mcp from source
+pnpm dev          # runs docpilot from source
 ```
 
 Conventions and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The repo uses:
@@ -323,7 +328,7 @@ docpilot is free, local-first, and built in the open. If your team relies on it,
 
 <div align="center">
 
-<a href="https://github.com/sponsors/docpilot"><b>❤︎ &nbsp;Sponsor docpilot on GitHub</b></a>
+<a href="https://github.com/sponsors/tamimbinhakim"><b>❤︎ &nbsp;Sponsor docpilot on GitHub</b></a>
 
 </div>
 
