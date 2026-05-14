@@ -12,11 +12,15 @@ Turn a fuzzy library name into a canonical `owner/repo`. Suggests an install com
 
 **Input**
 
-| Field           | Type                                                                        | Notes                                                      |
-| --------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `query`         | `string`                                                                    | Required. Examples: `"next.js"`, `"drizzle orm"`, `"axum"` |
-| `ecosystem`     | `"npm" \| "pypi" \| "crates" \| "go" \| "rubygems" \| "packagist" \| "hex"` | Bias the registry probe order                              |
-| `force_refresh` | `boolean`                                                                   | Bypass the 30-day resolutions cache                        |
+```ts
+{
+  query: string                // Required. "next.js", "drizzle orm", "axum", …
+  ecosystem?: Ecosystem        // Bias the registry probe order
+  force_refresh?: boolean      // Bypass the 30-day resolutions cache
+}
+
+type Ecosystem = "npm" | "pypi" | "crates" | "go" | "rubygems" | "packagist" | "hex"
+```
 
 **Output**
 
@@ -42,13 +46,15 @@ Markdown tree of docs files in a repo.
 
 **Input**
 
-| Field              | Type      | Notes                                                             |
-| ------------------ | --------- | ----------------------------------------------------------------- |
-| `repo`             | `string`  | `[forge:]owner/repo[@ref][#subpath]`                              |
-| `deep`             | `boolean` | Include nested docs more than 4 levels deep                       |
-| `include_examples` | `boolean` | Sibling section for `/examples` and `/cookbook`                   |
-| `max_files`        | `number`  | Cap on returned entries                                           |
-| `since`            | `string`  | ISO date — filter to files committed since (training-cutoff diff) |
+```ts
+{
+  repo: string                 // [forge:]owner/repo[@ref][#subpath]
+  deep?: boolean               // Include nested docs more than 4 levels deep
+  include_examples?: boolean   // Sibling section for /examples and /cookbook
+  max_files?: number           // Cap on returned entries
+  since?: string               // ISO date — filter to files committed since (training-cutoff diff)
+}
+```
 
 **Output**
 
@@ -77,12 +83,14 @@ Fetch one file with metadata frontmatter and a one-paragraph local extractive su
 
 **Input**
 
-| Field        | Type               | Notes                                |
-| ------------ | ------------------ | ------------------------------------ |
-| `repo`       | `string`           | `[forge:]owner/repo[@ref][#subpath]` |
-| `path`       | `string`           | Path relative to repo root           |
-| `lines`      | `[number, number]` | 0-indexed range                      |
-| `head_bytes` | `number`           | First N bytes only                   |
+```ts
+{
+  repo: string                 // [forge:]owner/repo[@ref][#subpath]
+  path: string                 // Path relative to repo root
+  lines?: [number, number]     // 0-indexed range
+  head_bytes?: number          // First N bytes only
+}
+```
 
 **Output**
 
@@ -113,13 +121,15 @@ BM25+ search over a snapshot's docs files. Index is built lazily on first call, 
 
 **Input**
 
-| Field           | Type                                  | Default | Notes                      |
-| --------------- | ------------------------------------- | ------- | -------------------------- |
-| `repo`          | `string`                              | —       | `[forge:]owner/repo[@ref]` |
-| `query`         | `string`                              | —       | Free-text                  |
-| `limit`         | `number`                              | `10`    | Max hits                   |
-| `fields`        | `("title" \| "headings" \| "body")[]` | all     | Restrict the search        |
-| `snippet_chars` | `number`                              | `240`   | Snippet width              |
+```ts
+{
+  repo: string                                  // [forge:]owner/repo[@ref]
+  query: string                                 // Free-text
+  limit?: number                                // Max hits — default 10
+  fields?: ("title" | "headings" | "body")[]   // Restrict the search — default all
+  snippet_chars?: number                        // Snippet width — default 240
+}
+```
 
 **Output**
 
@@ -141,14 +151,16 @@ Fan-out search across many repos in one call. Reuses per-repo indexes.
 
 **Input**
 
-| Field            | Type       | Default | Notes                                                        |
-| ---------------- | ---------- | ------- | ------------------------------------------------------------ |
-| `query`          | `string`   | —       | Free-text                                                    |
-| `repos`          | `string[]` | —       | Explicit list of repo specs                                  |
-| `from_lockfile`  | `boolean`  | `false` | Resolve every direct dep in the cwd lockfile and search them |
-| `limit_per_repo` | `number`   | `3`     | Per-repo hit cap                                             |
-| `total_limit`    | `number`   | `15`    | Cross-repo hit cap                                           |
-| `snippet_chars`  | `number`   | `200`   | Snippet width                                                |
+```ts
+{
+  query: string                // Free-text
+  repos?: string[]             // Explicit list of repo specs
+  from_lockfile?: boolean      // Resolve every direct dep in the cwd lockfile and search them — default false
+  limit_per_repo?: number      // Per-repo hit cap — default 3
+  total_limit?: number         // Cross-repo hit cap — default 15
+  snippet_chars?: number       // Snippet width — default 200
+}
+```
 
 **Output**
 
@@ -171,11 +183,13 @@ Fan-out search across many repos in one call. Reuses per-repo indexes.
 
 Cheap preview — first N lines.
 
-| Field  | Type     | Default |
-| ------ | -------- | ------- |
-| `repo` | `string` | —       |
-| `path` | `string` | —       |
-| `n`    | `number` | `40`    |
+```ts
+{
+  repo: string
+  path: string
+  n?: number  // default 40
+}
+```
 
 ---
 
@@ -202,11 +216,13 @@ Slice `CHANGELOG.md` (or `HISTORY.md` / `CHANGES.md`) between two refs.
 
 **Input**
 
-| Field      | Type     | Notes                               |
-| ---------- | -------- | ----------------------------------- |
-| `repo`     | `string` | `owner/repo`                        |
-| `from_ref` | `string` | Older version heading to slice from |
-| `to_ref`   | `string` | Newer version heading to slice to   |
+```ts
+{
+  repo: string                 // owner/repo
+  from_ref?: string            // Older version heading to slice from
+  to_ref?: string              // Newer version heading to slice to
+}
+```
 
 Heuristic match on `## v1.2.3` / `## [1.2.3]` / `## 1.2.3` headings. Falls back to the full file when nothing matches.
 
@@ -234,13 +250,15 @@ Search a repo's open issues / PRs that mention `query`. Uses GitHub's separate `
 
 **Input**
 
-| Field   | Type                          | Default  |
-| ------- | ----------------------------- | -------- |
-| `repo`  | `string`                      | —        |
-| `query` | `string`                      | —        |
-| `state` | `"open" \| "closed" \| "all"` | `"open"` |
-| `type`  | `"issue" \| "pr" \| "both"`   | `"both"` |
-| `limit` | `number`                      | `5`      |
+```ts
+{
+  repo: string
+  query: string
+  state?: "open" | "closed" | "all"   // default "open"
+  type?: "issue" | "pr" | "both"      // default "both"
+  limit?: number                       // default 5
+}
+```
 
 ---
 
