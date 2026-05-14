@@ -1,15 +1,6 @@
-<!--
-  TODO: replace with the real logo + landing page once docpilot.dev exists.
-  Until then the title block carries the hero on its own.
-
 <div align="center">
-  <a href="https://docpilot.dev" target="_blank">
-    <img alt="docpilot" src="https://docpilot.dev/og.png" width="640" />
-  </a>
+  <img alt="docpilot — local-first docs for AI coding assistants" src="assets/banner.png" width="900" />
 </div>
--->
-
-<h1 align="center">docpilot</h1>
 
 <h3 align="center">
   Up-to-date docs for AI coding assistants.<br />
