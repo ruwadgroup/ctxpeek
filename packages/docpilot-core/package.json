@@ -53,8 +53,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.2",
+    "@vitest/coverage-v8": "^4.1.6",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.2"
+    "vitest": "^4.1.6"
   }
 }
