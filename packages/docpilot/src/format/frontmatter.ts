@@ -21,7 +21,6 @@ export type DocFrontmatter = {
   readonly lastModified?: string;
   readonly source?: "cache" | "rest" | "cdn" | "graphql";
   readonly tokensApprox: number;
-  readonly summary?: string;
 };
 
 export function renderFrontmatter(fm: DocFrontmatter): string {
@@ -34,7 +33,6 @@ export function renderFrontmatter(fm: DocFrontmatter): string {
   if (fm.lastModified) lines.push(`last_modified: ${fm.lastModified}`);
   if (fm.source) lines.push(`source: ${fm.source}`);
   lines.push(`~tokens: ${fm.tokensApprox}`);
-  if (fm.summary) lines.push(`summary: ${escapeYaml(fm.summary)}`);
   lines.push("---");
   return lines.join("\n");
 }
