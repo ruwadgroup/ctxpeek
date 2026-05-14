@@ -121,7 +121,7 @@ LRU eviction over a configurable cap (default 1 GiB). Single-writer per snapshot
 
 Content-addressing means two refs that share files share storage. A new release of a 50 MB repo costs only the diff. Every cached byte is verifiable against its sha.
 
-### 6. Indexer (`src/index/`)
+### 6. Search index (`src/search/`)
 
 `minisearch` 7.x with BM25+. Per file:
 
@@ -148,14 +148,28 @@ A few decisions worth calling out:
 
 **Why no SaaS?** If we run a server, we become Context7. The whole pitch is "no third party can author content delivered through docpilot." A hosted endpoint breaks that.
 
+## Plug-in registries
+
+Three `define*` factories let contributors extend docpilot by adding **one file** — no other code in the repo needs to change. See [`docs/guides/extending.md`](../guides/extending.md) for end-to-end examples.
+
+| Concern                                           | Helper                 | Files live in             |
+| ------------------------------------------------- | ---------------------- | ------------------------- |
+| Git forge (GitHub, GitLab, Bitbucket, Codeberg …) | `defineForge`          | `src/fetch/forges/`       |
+| Lockfile parser (npm, PyPI, crates, Swift …)      | `defineLockfileParser` | `src/lockfile/parsers/`   |
+| Registry probe (npm, PyPI, Maven, NuGet …)        | `defineRegistry`       | `src/resolve/registries/` |
+
+Each helper writes to a module-local `Map<string, Definition>`. Built-ins side-register on import. The respective `getX(id)` / `listX()` helpers expose the resulting registry to consumers.
+
 ## Where to read the code
 
-- [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts)
-- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/)
-- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts)
+- [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts) — MCP entrypoint + CLI dispatch
+- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/) — 12 tools, one file each
+- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts) — REST + CDN + GraphQL fallback chain
+- [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/) — GitHub / GitLab / Bitbucket adapters
 - [`packages/docpilot/src/resolve/orchestrator.ts`](../../packages/docpilot/src/resolve/orchestrator.ts)
+- [`packages/docpilot/src/lockfile.ts`](../../packages/docpilot/src/lockfile.ts) — manifest detection façade
 - [`packages/docpilot/src/cache/`](../../packages/docpilot/src/cache/)
-- [`packages/docpilot/src/index/`](../../packages/docpilot/src/index/)
+- [`packages/docpilot/src/search/`](../../packages/docpilot/src/search/)
 - [`packages/docpilot-core/`](../../packages/docpilot-core/)
 
 If you read those and still have a "wait, how does X work?" question, that's a docs bug. Please file it.

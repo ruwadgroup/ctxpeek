@@ -33,13 +33,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install ruff
         run: pipx install ruff
-      - name: Lint JS/TS (oxlint)
+      - name: Lint JS/TS (biome)
         run: pnpm lint:js
       - name: Lint Python (ruff)
         run: pnpm lint:py
       - name: Format check — markdown (prettier)
         run: pnpm format:check:md
-      - name: Format check — JS/TS (oxfmt)
+      - name: Format check — JS/TS (biome)
         run: pnpm format:check:js
       - name: Format check — Python (ruff)
         run: pnpm format:check:py

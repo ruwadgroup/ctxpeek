@@ -113,12 +113,22 @@ fetch_doc("drizzle-team/drizzle-orm@v0.30.1",
 
 You'll see the tool calls fire in the client UI; the model now has fresh, version-pinned docs in context.
 
-## 4. (Optional) Set up a recipe
+## 4. (Optional) Pre-warm a stack
 
-If you work in a stable stack, pre-warm the cache:
+If you work in a stable stack, pre-warm the cache with `docpilot warm`:
+
+```bash
+# Inline list of repo specs
+npx -y docpilot warm vercel/next.js@v15.0.0 drizzle-team/drizzle-orm@v0.30.1
+
+# Or from a recipe file
+npx -y docpilot warm ./.docpilot.recipe.toml
+```
+
+Recipe file format:
 
 ```toml
-# .docpilot.recipe.toml in your project root
+# .docpilot.recipe.toml
 [[repo]]
 spec  = "vercel/next.js@v15.0.0"
 alias = "next"
@@ -128,15 +138,12 @@ spec  = "drizzle-team/drizzle-orm@v0.30.1"
 alias = "drizzle"
 ```
 
-```bash
-npx -y docpilot recipe install ./.docpilot.recipe.toml
-```
-
 The next session has zero cold-start latency for those repos.
 
 ## What's next
 
 - [Authentication](authentication.md) — bring your own token, or run anonymously
 - [Configuration](../reference/configuration.md) — every knob
-- [Tools reference](../reference/tools.md) — what each tool returns
+- [Tools reference](../reference/tools.md) — all 12 tools
+- [Extending docpilot](extending.md) — add a forge, lockfile parser, or registry probe
 - [Troubleshooting](troubleshooting.md) — when things go sideways

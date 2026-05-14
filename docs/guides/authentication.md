@@ -4,11 +4,11 @@ docpilot is a local-first MCP server. The only entity that "authenticates" is **
 
 ## Three tiers, autodetected
 
-| Tier | What you provide | Rate limit | When to use |
-| --- | --- | --- | --- |
-| **Anonymous** | nothing | 60 REST/hr per IP; CDN unmetered | Casual experimentation |
-| **PAT** (recommended) | `GITHUB_TOKEN` env var | 5,000 REST/hr; conditional 304s are free | Daily use |
-| **GitHub App** | `GITHUB_APP_ID` + `GITHUB_PRIVATE_KEY` | up to 15,000 REST/hr | Org-wide deployments |
+| Tier                  | What you provide                       | Rate limit                               | When to use            |
+| --------------------- | -------------------------------------- | ---------------------------------------- | ---------------------- |
+| **Anonymous**         | nothing                                | 60 REST/hr per IP; CDN unmetered         | Casual experimentation |
+| **PAT** (recommended) | `GITHUB_TOKEN` env var                 | 5,000 REST/hr; conditional 304s are free | Daily use              |
+| **GitHub App**        | `GITHUB_APP_ID` + `GITHUB_PRIVATE_KEY` | up to 15,000 REST/hr                     | Org-wide deployments   |
 
 ## Personal Access Token (PAT)
 

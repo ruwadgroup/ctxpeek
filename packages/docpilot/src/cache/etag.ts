@@ -1,17 +1,35 @@
-/**
- * Path → ETag map for REST conditional GETs.
- *
- *   etag-map.json     { "{owner}/{repo}/{path}@{sha}": "<etag>" }
- *
- * Authenticated 304 responses do NOT count against the primary rate
- * limit (per docs.github.com), which is the central rate-limit win.
- */
-export interface EtagStore {
+// Path → ETag map for REST conditional GETs.
+import { readJson, updateJson } from "../util/index.js";
+
+export type EtagStore = {
   get(key: string): Promise<string | undefined>;
   put(key: string, etag: string): Promise<void>;
+  delete(key: string): Promise<void>;
+};
+
+export function etagKey(owner: string, repo: string, ref: string, filePath: string): string {
+  return `${owner}/${repo}/${filePath}@${ref}`;
 }
 
-export function createEtagStore(_dir: string): EtagStore {
-  // TODO(v0.1, day-2)
-  throw new Error("not implemented");
+export function createEtagStore(etagMapFile: string): EtagStore {
+  return {
+    async get(key) {
+      const data = await readJson<Record<string, string>>(etagMapFile);
+      return data?.[key];
+    },
+    async put(key, etag) {
+      await updateJson<Record<string, string>>(etagMapFile, (current) => ({
+        ...current,
+        [key]: etag,
+      }));
+    },
+    async delete(key) {
+      await updateJson<Record<string, string>>(etagMapFile, (current) => {
+        if (!current) return {};
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+    },
+  };
 }

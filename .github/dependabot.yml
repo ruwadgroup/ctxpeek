@@ -16,7 +16,7 @@ updates:
       types:
         patterns: ["@types/*"]
       lint:
-        patterns: ["oxlint", "oxfmt", "prettier"]
+        patterns: ["@biomejs/biome", "prettier"]
       changesets:
         patterns: ["@changesets/*"]
       mcp:

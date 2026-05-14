@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DocpilotError, InvalidRepoSpecError, NotFoundError } from "../src/errors/errors.js";
+import { DocpilotError, InvalidRepoSpecError, NotFoundError } from "../src/errors.js";
 
 describe("error hierarchy", () => {
   it("InvalidRepoSpecError is a DocpilotError", () => {

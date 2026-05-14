@@ -1,6 +1,5 @@
 {
-  "*.{ts,tsx,js,cjs,mjs,jsx,json}": ["oxfmt", "oxlint --fix"],
+  "*.{ts,tsx,js,cjs,mjs,jsx,json,jsonc}": ["biome check --write --no-errors-on-unmatched"],
   "*.py": ["ruff format", "ruff check --fix"],
-  "*.{md,mdx}": ["prettier --write"],
-  "*.{toml,yml,yaml}": ["prettier --check"]
+  "*.{md,mdx}": ["prettier --write"]
 }

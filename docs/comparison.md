@@ -2,24 +2,24 @@
 
 A direct, non-marketing comparison.
 
-| Property | docpilot | Context7 | GitMCP | Ref Tools |
-| --- | --- | --- | --- | --- |
-| Transport | stdio (local) | stdio + HTTP (hosted) | stdio + HTTP (hosted) | stdio (local) |
-| Account required | No | Optional, recommended for higher quota | Optional | No |
-| Trust boundary | Your GitHub PAT, public CDN | Upstash registry + Custom Rules surface | Hosted; user-trusted | Local |
-| Data freshness | ETag-revalidated on read; min round-trip | Periodic re-index; days lag on new releases | On-demand fetch | On-demand |
-| Library coverage | Any public GitHub repo | Curated registry | Any public GitHub repo | Configured docs sets |
-| Version pinning | `owner/repo@ref` first-class | `/owner/lib/vX.Y.Z` slash form | Limited | Per-source |
-| Privacy | Query strings never leave your machine | Every query → context7.com | Query → gitmcp.io | Local |
-| Prompt-injection vector | None (no third-party instruction channel) | Patched ContextCrush; structural concern remains | Hosted; theoretical | Minimal |
-| Cost | Free, your rate limits | Free tier + paid tiers | Free | Free |
-| Response format | Markdown by default | JSON-flavored text payloads | Markdown | Markdown |
-| Token efficiency | Tree+frontmatter; self-reports cost | Larger; users report bloat | Medium | Tight |
-| Offline cache | Yes, content-addressed | No (hosted) | No (hosted) | Partial |
-| Fuzzy name resolution | npm/PyPI/crates first, GitHub last | Internal trust-scored registry | URL-based | N/A |
-| Monorepo subpath | First-class `#subpath` | Limited | Limited | N/A |
-| Code search | Not in scope (use github-mcp-server) | Code snippets included | Code search | No |
-| License (server) | Apache-2.0 | Custom (npm package MIT; service ToS bind) | MIT | Closed/freemium |
+| Property                | docpilot                                  | Context7                                         | GitMCP                 | Ref Tools            |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------ | ---------------------- | -------------------- |
+| Transport               | stdio (local)                             | stdio + HTTP (hosted)                            | stdio + HTTP (hosted)  | stdio (local)        |
+| Account required        | No                                        | Optional, recommended for higher quota           | Optional               | No                   |
+| Trust boundary          | Your GitHub PAT, public CDN               | Upstash registry + Custom Rules surface          | Hosted; user-trusted   | Local                |
+| Data freshness          | ETag-revalidated on read; min round-trip  | Periodic re-index; days lag on new releases      | On-demand fetch        | On-demand            |
+| Library coverage        | Any public GitHub repo                    | Curated registry                                 | Any public GitHub repo | Configured docs sets |
+| Version pinning         | `owner/repo@ref` first-class              | `/owner/lib/vX.Y.Z` slash form                   | Limited                | Per-source           |
+| Privacy                 | Query strings never leave your machine    | Every query → context7.com                       | Query → gitmcp.io      | Local                |
+| Prompt-injection vector | None (no third-party instruction channel) | Patched ContextCrush; structural concern remains | Hosted; theoretical    | Minimal              |
+| Cost                    | Free, your rate limits                    | Free tier + paid tiers                           | Free                   | Free                 |
+| Response format         | Markdown by default                       | JSON-flavored text payloads                      | Markdown               | Markdown             |
+| Token efficiency        | Tree+frontmatter; self-reports cost       | Larger; users report bloat                       | Medium                 | Tight                |
+| Offline cache           | Yes, content-addressed                    | No (hosted)                                      | No (hosted)            | Partial              |
+| Fuzzy name resolution   | npm/PyPI/crates first, GitHub last        | Internal trust-scored registry                   | URL-based              | N/A                  |
+| Monorepo subpath        | First-class `#subpath`                    | Limited                                          | Limited                | N/A                  |
+| Code search             | Not in scope (use github-mcp-server)      | Code snippets included                           | Code search            | No                   |
+| License (server)        | Apache-2.0                                | Custom (npm package MIT; service ToS bind)       | MIT                    | Closed/freemium      |
 
 ## When to pick which
 

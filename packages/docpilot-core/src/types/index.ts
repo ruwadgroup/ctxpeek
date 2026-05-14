@@ -1,3 +1,3 @@
-export * from "./repo-spec.js";
+export * from "./repoSpec.js";
 export * from "./snapshot.js";
-export * from "./tool-result.js";
+export * from "./toolResult.js";

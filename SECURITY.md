@@ -4,10 +4,10 @@
 
 docpilot is pre-1.0. Only the latest minor release on the `main` branch is supported with security fixes.
 
-| Version | Supported |
-| ------- | --------- |
-| `0.x.y` (latest) | yes |
-| anything older | no |
+| Version          | Supported |
+| ---------------- | --------- |
+| `0.x.y` (latest) | yes       |
+| anything older   | no        |
 
 ## Reporting a Vulnerability
 

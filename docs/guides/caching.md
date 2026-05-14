@@ -6,10 +6,10 @@ docpilot keeps everything on disk. There is no in-memory daemon, no background p
 
 The cache lives at `env-paths('docpilot').cache`, which resolves to:
 
-| OS | Default path |
-| --- | --- |
-| macOS | `~/Library/Caches/docpilot` |
-| Linux | `~/.cache/docpilot` (XDG) |
+| OS      | Default path                    |
+| ------- | ------------------------------- |
+| macOS   | `~/Library/Caches/docpilot`     |
+| Linux   | `~/.cache/docpilot` (XDG)       |
 | Windows | `%LOCALAPPDATA%\docpilot\Cache` |
 
 Override with `DOCPILOT_CACHE_DIR` or `[cache] dir = "..."` in `.docpilot.toml`.

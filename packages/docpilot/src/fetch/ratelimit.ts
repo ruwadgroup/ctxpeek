@@ -1,34 +1,90 @@
 /**
  * Rate-limit & secondary-limit accounting.
  *
- *   - 8 concurrent in-flight req cap (well under shared 100 limit)
- *   - 60 req/min token bucket (clear of 900 pts/min endpoint cap)
- *   - exp backoff with Retry-After honor on 429/403, max 5 retries
- *   - X-RateLimit-Remaining < 100 → switch to CDN-only and warn
+ *   - hard cap on concurrent in-flight requests (default 8, well under shared 100)
+ *   - token bucket (default 60 req/min) to stay clear of 900 pts/min endpoint cap
+ *   - exponential backoff with Retry-After honor on 429/403 is in HttpClient
+ *   - X-RateLimit-Remaining < 100 → preferCdn switches on for the rest of session
  *
- * See design doc §4.6.
+ * Design doc §4.6.
  */
+import { sleep } from "../util/index.js";
 
-export interface RateLimitState {
+export type RateLimitState = {
   readonly remaining: number | undefined;
   readonly resetAt: Date | undefined;
-}
+};
 
 export class RateLimiter {
+  private inflight = 0;
+  private readonly waiters: Array<() => void> = [];
+  private bucketTokens: number;
+  private lastRefill = Date.now();
+  private latestRemaining: number | undefined;
+  private latestResetAt: Date | undefined;
+  private degraded = false;
+
   constructor(
-    private readonly _concurrentMax = 8,
-    private readonly _perMinute = 60,
-  ) {}
+    private readonly concurrentMax = 8,
+    private readonly perMinute = 60,
+  ) {
+    this.bucketTokens = perMinute;
+  }
+
+  isDegraded(): boolean {
+    return this.degraded;
+  }
+
+  state(): RateLimitState {
+    return { remaining: this.latestRemaining, resetAt: this.latestResetAt };
+  }
 
   async acquire(): Promise<void> {
-    // TODO(v0.1, day-2): leaky-bucket + semaphore
+    while (this.inflight >= this.concurrentMax) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    }
+    this.inflight += 1;
+    await this.takeToken();
   }
 
   release(): void {
-    // TODO
+    this.inflight -= 1;
+    const w = this.waiters.shift();
+    if (w) w();
   }
 
-  observe(_state: RateLimitState): void {
-    // TODO: emit "switch to CDN-only" notification when remaining < 100
+  observe(headers: Record<string, string>): void {
+    const remHeader = headers["x-ratelimit-remaining"];
+    const resetHeader = headers["x-ratelimit-reset"];
+    if (remHeader !== undefined) {
+      const n = Number(remHeader);
+      if (Number.isFinite(n)) {
+        this.latestRemaining = n;
+        if (n < 100) this.degraded = true;
+      }
+    }
+    if (resetHeader !== undefined) {
+      const epoch = Number(resetHeader);
+      if (Number.isFinite(epoch)) this.latestResetAt = new Date(epoch * 1000);
+    }
+  }
+
+  private async takeToken(): Promise<void> {
+    this.refill();
+    while (this.bucketTokens < 1) {
+      const waitMs = Math.ceil(60_000 / this.perMinute);
+      await sleep(waitMs);
+      this.refill();
+    }
+    this.bucketTokens -= 1;
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsedMs = now - this.lastRefill;
+    if (elapsedMs <= 0) return;
+    const tokens = (elapsedMs / 60_000) * this.perMinute;
+    this.bucketTokens = Math.min(this.perMinute, this.bucketTokens + tokens);
+    this.lastRefill = now;
   }
 }

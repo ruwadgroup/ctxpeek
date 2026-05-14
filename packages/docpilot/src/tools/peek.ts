@@ -1,13 +1,7 @@
-/**
- * Tool: peek
- *
- * Cheap preview — first N lines of a file before committing to a full
- * fetch. Stops the model from loading a 30k-token file to find out it's
- * the wrong one.
- *
- * See design doc §6.2 (peek), §8.5, §14 Tier S #1.
- */
 import { z } from "zod";
+import { fetchBlob } from "../fetch/strategy.js";
+import { approxTokens, renderFrontmatter } from "../format/frontmatter.js";
+import { fetchContextFrom, resolveSnapshot, type ToolContext } from "./context.js";
 
 export const peekInput = z.object({
   repo: z.string(),
@@ -17,7 +11,40 @@ export const peekInput = z.object({
 
 export type PeekInput = z.infer<typeof peekInput>;
 
-export async function peek(_input: PeekInput): Promise<string> {
-  // TODO(v0.1, week-2): read N lines via the same fetch path
-  throw new Error("not implemented");
+export function buildPeekTool(ctx: ToolContext) {
+  return async (input: PeekInput): Promise<string> => {
+    const resolved = await resolveSnapshot(ctx, input.repo);
+    const fctx = fetchContextFrom(ctx);
+    const result = await fetchBlob(
+      fctx,
+      resolved.owner,
+      resolved.repo,
+      resolved.snapshot.commitSha,
+      input.path.replace(/^\/+/, ""),
+      {
+        preferCdn: ctx.config.fetch.preferCdn,
+        cdnEnabled: ctx.config.fetch.cdnEnabled,
+      },
+      resolved.forge,
+    );
+    const text = Buffer.from(result.bytes).toString("utf8");
+    const lines = text.split(/\r?\n/);
+    const head = lines.slice(0, input.n).join("\n");
+    const fm = renderFrontmatter({
+      repo: `${resolved.owner}/${resolved.repo}`,
+      ref: resolved.snapshot.requestedRef,
+      commit: resolved.snapshot.commitSha.slice(0, 7),
+      path: input.path,
+      size: result.bytes.byteLength,
+      source: result.source,
+      tokensApprox: approxTokens(head),
+    });
+    return [
+      `# Peek: ${resolved.owner}/${resolved.repo}@${resolved.snapshot.requestedRef}:${input.path} (first ${input.n} of ${lines.length} lines / ${result.bytes.byteLength} bytes total)`,
+      "",
+      fm,
+      "",
+      head,
+    ].join("\n");
+  };
 }

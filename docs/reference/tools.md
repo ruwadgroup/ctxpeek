@@ -1,6 +1,6 @@
 # Tools reference
 
-Every docpilot tool returns markdown `text` content unless explicitly noted. Tools whose output is plausibly chained programmatically (`resolve_repo`, optionally `list_docs`) also expose `structuredContent` validated against an `outputSchema`.
+Every docpilot tool returns markdown `text` content unless explicitly noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent` validated against an `outputSchema`.
 
 All input schemas use `zod` via `@modelcontextprotocol/sdk`.
 
@@ -8,31 +8,28 @@ All input schemas use `zod` via `@modelcontextprotocol/sdk`.
 
 ## `resolve_repo(query, opts?)`
 
-Turn a fuzzy library name into a canonical `owner/repo`.
+Turn a fuzzy library name into a canonical `owner/repo`. Suggests an install command when the dep is missing from your project lockfile.
 
 **Input**
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `query` | `string` | Required. Examples: `"next.js"`, `"drizzle orm"`, `"axum"` |
-| `opts.ecosystem` | `"npm" \| "pypi" \| "crates" \| "go" \| "rubygems" \| "packagist" \| "hex"` | Bias the registry probe order |
-| `opts.force_refresh` | `boolean` | Bypass the resolutions cache |
+| Field           | Type                                                                        | Notes                                                      |
+| --------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `query`         | `string`                                                                    | Required. Examples: `"next.js"`, `"drizzle orm"`, `"axum"` |
+| `ecosystem`     | `"npm" \| "pypi" \| "crates" \| "go" \| "rubygems" \| "packagist" \| "hex"` | Bias the registry probe order                              |
+| `force_refresh` | `boolean`                                                                   | Bypass the 30-day resolutions cache                        |
 
 **Output**
 
 ```markdown
-# Resolved "drizzle orm" → drizzle-team/drizzle-orm  (npm exact match)
+# Resolved "drizzle orm" → drizzle-team/drizzle-orm  (npm match)
 
 repo:    drizzle-team/drizzle-orm
 stars:   28.4k
 default: main
-latest:  v0.30.1 (2026-05-03)
 
-Use: `list_docs("drizzle-team/drizzle-orm@v0.30.1")`
+Use: `list_docs("drizzle-team/drizzle-orm")`
 
-Alternative matches (lower confidence):
-- drizzle-team/drizzle-kit (companion CLI)
-- ponded/drizzle-orm-helpers (community fork)
+> Not in your package.json — `npm install drizzle-orm` to add it.
 ```
 
 When ambiguous (top result has stars < 10× #2), all candidates are returned and the model picks. Algorithm: see [`docs/internals/architecture.md`](../internals/architecture.md#resolver).
@@ -45,12 +42,13 @@ Markdown tree of docs files in a repo.
 
 **Input**
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `repo` | `string` | `owner/repo[@ref][#subpath]` |
-| `opts.deep` | `boolean` | Include nested docs more than 4 levels deep |
-| `opts.include_examples` | `boolean` | Sibling section for `/examples` and `/cookbook` |
-| `opts.max_files` | `number` | Cap; default 500 |
+| Field              | Type      | Notes                                                             |
+| ------------------ | --------- | ----------------------------------------------------------------- |
+| `repo`             | `string`  | `[forge:]owner/repo[@ref][#subpath]`                              |
+| `deep`             | `boolean` | Include nested docs more than 4 levels deep                       |
+| `include_examples` | `boolean` | Sibling section for `/examples` and `/cookbook`                   |
+| `max_files`        | `number`  | Cap on returned entries                                           |
+| `since`            | `string`  | ISO date — filter to files committed since (training-cutoff diff) |
 
 **Output**
 
@@ -66,25 +64,25 @@ docs/
 │   └── …
 └── …
 
-✦ = high signal (in llms.txt or README index)
-✦✦ = highlighted in repo's own docs nav
-⚠️ = changed within last 7 days
+Legend: ✦ high-signal (top-level / llms.txt / framework nav),
+        ✦✦ highlighted in repo nav,
+        ⚠️ changed within last 7d (or since `since`).
 ```
 
 ---
 
 ## `fetch_doc(repo, path, opts?)`
 
-Fetch one file with metadata frontmatter.
+Fetch one file with metadata frontmatter and a one-paragraph local extractive summary.
 
 **Input**
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `repo` | `string` | `owner/repo[@ref][#subpath]` |
-| `path` | `string` | Path relative to repo root |
-| `opts.lines` | `[number, number]` | 1-indexed inclusive range |
-| `opts.head_bytes` | `number` | First N bytes only |
+| Field        | Type               | Notes                                |
+| ------------ | ------------------ | ------------------------------------ |
+| `repo`       | `string`           | `[forge:]owner/repo[@ref][#subpath]` |
+| `path`       | `string`           | Path relative to repo root           |
+| `lines`      | `[number, number]` | 0-indexed range                      |
+| `head_bytes` | `number`           | First N bytes only                   |
 
 **Output**
 
@@ -95,8 +93,9 @@ ref: v15.0.0
 commit: a3b1f7c
 path: docs/01-app/02-routing.mdx
 size: 8923
-last_modified: 2026-04-22T14:33:00Z
+source: cdn
 ~tokens: 2150
+summary: App Router uses file-system based routing. Layouts wrap pages; loading.tsx renders during streaming.
 ---
 
 # Routing
@@ -104,23 +103,23 @@ last_modified: 2026-04-22T14:33:00Z
 App Router uses file-system based routing…
 ```
 
-Files >200 KB without `lines` / `head_bytes` get a `peek` response plus instructions.
+Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus instructions for the partial-read flags.
 
 ---
 
 ## `search_docs(repo, query, opts?)`
 
-BM25+ search over a snapshot's docs files.
+BM25+ search over a snapshot's docs files. Index is built lazily on first call, persisted by commit sha.
 
 **Input**
 
-| Field | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `repo` | `string` | — | `owner/repo[@ref]` |
-| `query` | `string` | — | Free-text |
-| `opts.limit` | `number` | `10` | Max hits |
-| `opts.fields` | `("title" \| "headings" \| "body")[]` | all | Restrict the search |
-| `opts.snippet_chars` | `number` | `240` | Snippet width |
+| Field           | Type                                  | Default | Notes                      |
+| --------------- | ------------------------------------- | ------- | -------------------------- |
+| `repo`          | `string`                              | —       | `[forge:]owner/repo[@ref]` |
+| `query`         | `string`                              | —       | Free-text                  |
+| `limit`         | `number`                              | `10`    | Max hits                   |
+| `fields`        | `("title" \| "headings" \| "body")[]` | all     | Restrict the search        |
+| `snippet_chars` | `number`                              | `240`   | Snippet width              |
 
 **Output**
 
@@ -136,15 +135,47 @@ BM25+ search over a snapshot's docs files.
 
 ---
 
+## `search_all(query, opts?)`
+
+Fan-out search across many repos in one call. Reuses per-repo indexes.
+
+**Input**
+
+| Field            | Type       | Default | Notes                                                        |
+| ---------------- | ---------- | ------- | ------------------------------------------------------------ |
+| `query`          | `string`   | —       | Free-text                                                    |
+| `repos`          | `string[]` | —       | Explicit list of repo specs                                  |
+| `from_lockfile`  | `boolean`  | `false` | Resolve every direct dep in the cwd lockfile and search them |
+| `limit_per_repo` | `number`   | `3`     | Per-repo hit cap                                             |
+| `total_limit`    | `number`   | `15`    | Cross-repo hit cap                                           |
+| `snippet_chars`  | `number`   | `200`   | Snippet width                                                |
+
+**Output**
+
+```markdown
+# search_all: "server actions"  (9 hits across 3 repos, 0.21s)
+
+## vercel/next.js@v15.0.0
+
+1. docs/01-app/01-getting-started/12-server-actions.mdx  · score 14.2
+   > Server Actions are async functions that run on the server…
+   `fetch_doc(...)`
+
+## drizzle-team/drizzle-orm@v0.30.1
+…
+```
+
+---
+
 ## `peek(repo, path, n?)`
 
 Cheap preview — first N lines.
 
-| Field | Type | Default |
-| --- | --- | --- |
-| `repo` | `string` | — |
-| `path` | `string` | — |
-| `n` | `number` | `40` |
+| Field  | Type     | Default |
+| ------ | -------- | ------- |
+| `repo` | `string` | —       |
+| `path` | `string` | —       |
+| `n`    | `number` | `40`    |
 
 ---
 
@@ -163,7 +194,53 @@ Unified diff for one file across two refs.
 +import type { NextRequest } from 'next/server'
 ```
 
-Sister tool: `get_changelog(repo, from_ref, to_ref)` — multi-file via `CHANGELOG.md` or commits touching docs paths.
+---
+
+## `changelog(repo, opts?)`
+
+Slice `CHANGELOG.md` (or `HISTORY.md` / `CHANGES.md`) between two refs.
+
+**Input**
+
+| Field      | Type     | Notes                               |
+| ---------- | -------- | ----------------------------------- |
+| `repo`     | `string` | `owner/repo`                        |
+| `from_ref` | `string` | Older version heading to slice from |
+| `to_ref`   | `string` | Newer version heading to slice to   |
+
+Heuristic match on `## v1.2.3` / `## [1.2.3]` / `## 1.2.3` headings. Falls back to the full file when nothing matches.
+
+---
+
+## `related_repos(repo, limit?)`
+
+Scrape README + llms.txt for github.com peer links, ranked by mention count. Useful for "often-used-with" suggestions.
+
+**Output**
+
+```markdown
+# Related repos for vercel/next.js@v15.0.0
+
+- vercel/turbo  · 9 mentions
+- vercel/swr  · 4 mentions
+- shadcn-ui/ui  · 2 mentions
+```
+
+---
+
+## `get_issues(repo, query, opts?)`
+
+Search a repo's open issues / PRs that mention `query`. Uses GitHub's separate `/search/issues` bucket (30/min).
+
+**Input**
+
+| Field   | Type                          | Default  |
+| ------- | ----------------------------- | -------- |
+| `repo`  | `string`                      | —        |
+| `query` | `string`                      | —        |
+| `state` | `"open" \| "closed" \| "all"` | `"open"` |
+| `type`  | `"issue" \| "pr" \| "both"`   | `"both"` |
+| `limit` | `number`                      | `5`      |
 
 ---
 
@@ -172,14 +249,18 @@ Sister tool: `get_changelog(repo, from_ref, to_ref)` — multi-file via `CHANGEL
 Scorecard for a repo's docs.
 
 ```markdown
-# Doc quality: vercel/next.js@v15.0.0
+# Docs quality: vercel/next.js@v15.0.0
 
-llms.txt:        present (2.4 KB)
-llms-full.txt:   present (412 KB)
-README docs link: yes → https://nextjs.org/docs
-nav config:      Mintlify (mint.json)
-last docs commit: 3 days ago
-size distribution: 187 files, p50 4.2k, p95 18k
+llms.txt:        present (2.4k)
+llms-full.txt:   present (412k)
+README:          present (README.md, 8.1k)
+Framework nav:   Mintlify (mint.json)
+Doc files:       187 files, 1.2M total, median 4.2k
+Last docs touch: 3d ago
+
+Score: excellent (87/100)
+- llms.txt present — search_docs will boost hits inside it.
+- Structured docs framework detected.
 ```
 
 ---
@@ -189,10 +270,13 @@ size distribution: 187 files, p50 4.2k, p95 18k
 Diagnostic.
 
 ```markdown
-# Cache status
+# docpilot cache
 
-cache dir:    /Users/you/Library/Caches/docpilot  (412 MiB / 1 GiB cap)
-snapshots:    14 (3 evicted last gc)
-hit rate:     93% (last 100 fetches)
-github quota: 4983/5000 reset 2026-05-14T16:42:00Z
+Location:     /Users/you/Library/Caches/docpilot
+Blobs:        128.4M
+Refs/trees:   1.1M
+Indexes:      18.2M
+Cap:          1024.0M (gc_days=14)
 ```
+
+Pass `{ repo: "owner/repo" }` for a per-repo ref breakdown.
