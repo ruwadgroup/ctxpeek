@@ -2,7 +2,7 @@
 
 <h3 align="center">
   Up-to-date docs for AI coding assistants.<br />
-  From your repos. On your machine. Pinned to the version you actually use.
+  Straight from the source repo. Cached on your machine. Pinned to the version you actually use.
 </h3>
 
 <p align="center">
@@ -383,7 +383,7 @@ I picked Apache over MIT for the explicit patent grant, given how much the MCP e
 
 <div align="center">
 
-<sub>Built because the docs your model is reading should be <i>your</i> docs, from <i>your</i> repo, at <i>your</i> version.</sub>
+<sub>Built because the docs your model is reading should come from the actual repo, at the version you actually use.</sub>
 
 <br />
 <br />
