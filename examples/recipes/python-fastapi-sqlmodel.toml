@@ -1,0 +1,13 @@
+# FastAPI + SQLModel + Pydantic stack.
+
+[[repo]]
+spec  = "fastapi/fastapi@0.115.0"
+alias = "fastapi"
+
+[[repo]]
+spec  = "fastapi/sqlmodel@0.0.22"
+alias = "sqlmodel"
+
+[[repo]]
+spec  = "pydantic/pydantic@v2.9.2"
+alias = "pydantic"

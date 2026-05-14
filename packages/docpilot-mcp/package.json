@@ -1,0 +1,87 @@
+{
+  "name": "docpilot-mcp",
+  "version": "0.0.0",
+  "description": "Local-first MCP server that turns any public GitHub repository into fresh, version-pinned documentation for AI coding assistants.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/docpilot/docpilot#readme",
+  "bugs": {
+    "url": "https://github.com/docpilot/docpilot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docpilot/docpilot.git",
+    "directory": "packages/docpilot-mcp"
+  },
+  "author": "docpilot contributors",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "windsurf",
+    "documentation",
+    "github",
+    "context7-alternative",
+    "ai",
+    "llm",
+    "stdio"
+  ],
+  "bin": {
+    "docpilot": "./dist/cli.js",
+    "docpilot-mcp": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=default --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "typecheck": "tsc --noEmit",
+    "doctor": "node dist/cli.js doctor"
+  },
+  "dependencies": {
+    "@docpilot/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "env-paths": "^3.0.0",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
+    "minisearch": "^7.2.0",
+    "proper-lockfile": "^4.1.2",
+    "remark": "^15.0.1",
+    "remark-parse": "^11.0.0",
+    "smol-toml": "^1.3.1",
+    "undici": "^6.20.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.16.10",
+    "@types/proper-lockfile": "^4.1.4",
+    "@vitest/coverage-v8": "^2.1.2",
+    "msw": "^2.4.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

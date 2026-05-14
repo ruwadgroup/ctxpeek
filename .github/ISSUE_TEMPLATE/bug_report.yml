@@ -1,0 +1,59 @@
+name: Bug report
+description: Something isn't working as documented.
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please run `npx -y docpilot-mcp doctor` and paste the output below (redact your token).
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: docpilot doctor output
+      description: Output of `npx -y docpilot-mcp doctor` (redact your token)
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: MCP client + version
+      placeholder: "Claude Desktop 0.7.4 / Cursor 0.42 / VS Code 1.95"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Tool call (with arguments) and the unexpected response.
+      placeholder: |
+        Tool: list_docs
+        Args: { "repo": "vercel/next.js@v15.0.0" }
+        Got: <paste>
+        Expected: <describe>
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: |
+        OS: macOS 14.5 / Windows 11 / Ubuntu 24.04
+        Node: 20.18.0
+        pnpm (if dev install): 9.12.0
+        docpilot version: 0.x.y
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+        - label: I'm on the latest version (`npx -y docpilot-mcp@latest --version`)
+          required: true

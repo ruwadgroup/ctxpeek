@@ -1,0 +1,20 @@
+# Next.js + Drizzle + Clerk stack.
+#
+# Install:
+#   npx -y docpilot-mcp recipe install ./next-drizzle-clerk.toml
+
+[[repo]]
+spec  = "vercel/next.js@v15.0.0"
+alias = "next"
+
+[[repo]]
+spec  = "drizzle-team/drizzle-orm@v0.30.1"
+alias = "drizzle"
+
+[[repo]]
+spec  = "clerk/javascript@v5#packages/clerk-js"
+alias = "clerk"
+
+[[repo]]
+spec  = "tailwindlabs/tailwindcss@v4.0.0#packages/tailwindcss/docs"
+alias = "tailwind"

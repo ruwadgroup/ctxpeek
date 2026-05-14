@@ -1,0 +1,13 @@
+# Axum + Tokio + sqlx (Rust web stack).
+
+[[repo]]
+spec  = "tokio-rs/axum@v0.8.0"
+alias = "axum"
+
+[[repo]]
+spec  = "tokio-rs/tokio@tokio-1.40.0"
+alias = "tokio"
+
+[[repo]]
+spec  = "launchbadge/sqlx@v0.8.2"
+alias = "sqlx"

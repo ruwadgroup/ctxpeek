@@ -1,0 +1,46 @@
+# Ruff config — covers the small set of Python helper scripts in scripts/
+# and any future Python tooling. Not used for runtime code (TypeScript only).
+
+target-version = "py311"
+line-length = 100
+indent-width = 4
+respect-gitignore = true
+
+extend-exclude = [
+    "node_modules",
+    "dist",
+    "build",
+    ".venv",
+    "packages",
+    "examples",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific
+    "N",   # pep8-naming
+    "S",   # flake8-bandit (security)
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+]
+ignore = [
+    "E501",  # line length handled by formatter
+    "S101",  # asserts allowed in scripts
+]
+
+[lint.per-file-ignores]
+"scripts/**" = ["S603", "S607"]  # subprocess calls are intentional in scripts
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/docpilot/docpilot/discussions
+    about: Use GitHub Discussions for questions, ideas, and show-and-tell.
+  - name: Security advisory
+    url: https://github.com/docpilot/docpilot/security/advisories/new
+    about: Report a security vulnerability privately.

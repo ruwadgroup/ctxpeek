@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    labels: ["dependencies", "javascript"]
+    groups:
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      types:
+        patterns: ["@types/*"]
+      lint:
+        patterns: ["oxlint", "oxfmt", "prettier"]
+      changesets:
+        patterns: ["@changesets/*"]
+      mcp:
+        patterns: ["@modelcontextprotocol/*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "ci"]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: "/scripts"
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "python"]

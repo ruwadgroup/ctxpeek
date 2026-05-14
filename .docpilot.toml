@@ -1,0 +1,24 @@
+# Project-local docpilot config used by contributors when developing
+# against this repo. Real users typically place this in their cwd or
+# $HOME/.config/docpilot/config.toml.
+
+[cache]
+dir      = "~/.cache/docpilot"
+max_size = "1GiB"
+gc_days  = 14
+
+[fetch]
+prefer_cdn        = true
+concurrent_max    = 8
+secondary_budget  = 60
+honor_retry_after = true
+
+[auth]
+github_token_env = "GITHUB_TOKEN"
+
+[resolve]
+ecosystems             = ["npm", "pypi", "crates", "go", "rubygems"]
+github_search_fallback = true
+
+[experiments]
+prewarm_from_lockfile = true

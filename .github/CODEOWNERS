@@ -1,0 +1,30 @@
+# CODEOWNERS — automatic reviewer assignment.
+#
+# Each line is a path pattern followed by one or more owners.
+# Owners are notified for review when matching files change.
+# Last matching pattern takes precedence.
+
+# Default — anything not matched below.
+*                                   @docpilot/maintainers
+
+# Packages
+/packages/docpilot-mcp/             @docpilot/maintainers
+/packages/docpilot-core/            @docpilot/maintainers
+
+# Subsystems with potential domain owners
+/packages/docpilot-mcp/src/fetch/   @docpilot/fetch-owners
+/packages/docpilot-mcp/src/cache/   @docpilot/cache-owners
+/packages/docpilot-mcp/src/index/   @docpilot/index-owners
+/packages/docpilot-mcp/src/resolve/ @docpilot/resolver-owners
+
+# CI / build
+/.github/                           @docpilot/maintainers
+/.husky/                            @docpilot/maintainers
+*.config.js                         @docpilot/maintainers
+*.toml                              @docpilot/maintainers
+
+# Docs
+/docs/                              @docpilot/docs-owners
+/README.md                          @docpilot/docs-owners
+/CONTRIBUTING.md                    @docpilot/maintainers
+/SECURITY.md                        @docpilot/maintainers

@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "esbenp.prettier-vscode",
+    "charliermarsh.ruff",
+    "editorconfig.editorconfig",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions",
+    "vitest.explorer"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "docpilot-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Local-first MCP server that turns any public GitHub repository into fresh, version-pinned documentation for AI coding assistants.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/docpilot/docpilot#readme",
+  "bugs": {
+    "url": "https://github.com/docpilot/docpilot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docpilot/docpilot.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' run build",
+    "dev": "pnpm --filter docpilot-mcp run dev",
+    "test": "pnpm -r --filter './packages/*' run test",
+    "test:ci": "pnpm -r --filter './packages/*' run test:ci",
+    "typecheck": "pnpm -r --filter './packages/*' run typecheck",
+    "lint": "pnpm run lint:js && pnpm run lint:py && pnpm run lint:md",
+    "lint:js": "oxlint .",
+    "lint:py": "ruff check .",
+    "lint:md": "prettier --check \"**/*.md\"",
+    "format": "pnpm run format:js && pnpm run format:py && pnpm run format:md",
+    "format:js": "oxfmt .",
+    "format:py": "ruff format .",
+    "format:md": "prettier --write \"**/*.md\"",
+    "format:check": "pnpm run format:check:js && pnpm run format:check:py && pnpm run format:check:md",
+    "format:check:js": "oxfmt --check .",
+    "format:check:py": "ruff format --check .",
+    "format:check:md": "prettier --check \"**/*.md\"",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@types/node": "^20.16.10",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "oxfmt": "^0.1.0",
+    "oxlint": "^0.11.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}

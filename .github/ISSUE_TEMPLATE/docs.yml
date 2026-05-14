@@ -1,0 +1,24 @@
+name: Docs issue
+description: Something in the docs is wrong, unclear, or missing.
+title: "docs: "
+labels: ["docs", "needs-triage"]
+body:
+  - type: input
+    id: file
+    attributes:
+      label: Affected page
+      placeholder: "docs/guides/getting-started.md"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix (optional)

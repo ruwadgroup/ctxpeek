@@ -1,0 +1,7 @@
+docpilot
+Copyright 2026 docpilot contributors
+
+This product includes software developed by the docpilot contributors.
+
+Third-party dependencies (runtime) and their licenses are listed in the
+generated SBOM (.github/workflows/release.yml emits one per release).

@@ -1,0 +1,32 @@
+# Prettier is only used for markdown in this repo.
+# JS/TS/JSON/YAML are handled by oxfmt; Python by ruff.
+
+# Anything that isn't markdown
+*.ts
+*.tsx
+*.js
+*.cjs
+*.mjs
+*.jsx
+*.json
+*.jsonc
+*.json5
+*.yml
+*.yaml
+*.toml
+*.py
+*.sh
+*.html
+*.css
+*.scss
+
+# Generated
+dist/
+build/
+out/
+coverage/
+node_modules/
+.changeset/*.md
+CHANGELOG.md
+**/CHANGELOG.md
+pnpm-lock.yaml

@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pnpm deps
+        run: pnpm install --frozen-lockfile
+      - name: Install ruff
+        run: pipx install ruff
+      - name: Lint JS/TS (oxlint)
+        run: pnpm lint:js
+      - name: Lint Python (ruff)
+        run: pnpm lint:py
+      - name: Format check — markdown (prettier)
+        run: pnpm format:check:md
+      - name: Format check — JS/TS (oxfmt)
+        run: pnpm format:check:js
+      - name: Format check — Python (ruff)
+        run: pnpm format:check:py
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            packages/*/dist
+            !packages/*/dist/.tsbuildinfo
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    name: Test (Node ${{ matrix.node }} on ${{ matrix.os }})
+    needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:ci
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: packages/*/coverage
+          retention-days: 7
+
+  integration:
+    name: Integration (real GitHub)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter docpilot-mcp test:integration
+        env:
+          GITHUB_TOKEN: ${{ secrets.INTEGRATION_GITHUB_TOKEN }}
+
+  required:
+    name: CI required
+    needs: [lint, typecheck, build, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Aggregate
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] \
+             || [ "${{ needs.typecheck.result }}" != "success" ] \
+             || [ "${{ needs.build.result }}" != "success" ] \
+             || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
