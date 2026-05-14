@@ -35,8 +35,6 @@
 
 <div align="center">
 
-<a href="#the-story"><b>The Story</b></a>
-&nbsp;·&nbsp;
 <a href="docs/guides/getting-started.md"><b>Get Started</b></a>
 &nbsp;·&nbsp;
 <a href="docs/reference/tools.md"><b>Tools</b></a>
@@ -44,6 +42,8 @@
 <a href="docs/reference/configuration.md"><b>Configuration</b></a>
 &nbsp;·&nbsp;
 <a href="#why-not-context7"><b>vs Context7</b></a>
+&nbsp;·&nbsp;
+<a href="#the-story"><b>The Story</b></a>
 
 </div>
 
@@ -54,29 +54,6 @@
 > **Status:** v0.0 — repository scaffold. Core implementation lands in v0.1 (see [Roadmap](#roadmap)).
 
 </div>
-
-<br />
-
-## The story
-
-I built docpilot because I got tired of doing the same dance every day.
-
-I'd been elbows-deep in two of my own libraries — [`tamimbinhakim/imprint-pdf`](https://github.com/tamimbinhakim/imprint-pdf) and [`tamimbinhakim/dyadpy`](https://github.com/tamimbinhakim/dyadpy) — refactoring APIs faster than I could ship them. The repos were the source of truth for what the libraries did. They had to be. I was the one writing the docs.
-
-Then I'd open a _different_ project to actually use those libraries — to dogfood them, see if the API I'd just shipped was any good. And the AI in that editor was, predictably, useless about my libraries. Of course it was. Its training data was months old, and even if it weren't, my last refactor was twenty minutes ago. So it would politely hallucinate an API that hadn't existed since last Tuesday, and I'd waste a turn correcting it.
-
-So I'd do the dance:
-
-1. Open the library's repo in another tab.
-2. Find `llms-full.txt` — and hope I'd remembered to regenerate it after the rename.
-3. Paste it into the chat. Watch a third of my context window evaporate on docs the model would have ignored half of anyway.
-4. Repeat tomorrow because I'd shipped another breaking change at 1 AM.
-
-I tried Context7. It's well-built and the team clearly cares. But its registry doesn't know about my libraries until it crawls them, and by their own admission, _"very recent releases — within days — may not be available yet."_ My library changed thirty minutes ago. I needed _now_, not within-days. And I didn't love that every query phrased the way I phrased it was sailing off to a third-party service so it could decide which "trust-scored" library to feed back to my model.
-
-The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a commit sha for reproducibility, pin to `@main` for HEAD. ETag-revalidate so repeat reads cost zero against your rate limit. Cache locally. No middleman. No registry. No account.
-
-That's docpilot. It's the tool I wanted on my own machine, six months ago.
 
 <br />
 
@@ -105,9 +82,7 @@ What you get out of the box:
 
 ## Why not Context7
 
-Context7 is the elephant in the room and the reason I felt the need to write this section at all. It's the default people reach for, it's well-marketed, and it solved a real problem — for a while. But the parts that broke for me aren't bugs. They're properties of the architecture.
-
-I covered the personal version of this above. Here's the full picture.
+Context7 is the elephant in the room and the reason I felt the need to write this section at all. It's the default people reach for, it's well-marketed, and it solved a real problem — for a while. But the parts that broke for me aren't bugs. They're properties of the architecture. (The personal version of how I hit each of these is in [The story](#the-story) below.)
 
 |  | Context7 | docpilot |
 | --- | --- | --- |
@@ -128,6 +103,29 @@ I covered the personal version of this above. Here's the full picture.
 Context7's strengths — curation, hosted indexing, smart ranking — are precisely the surface area where it fails in ways docpilot **structurally cannot**. That's the whole pitch.
 
 > Want the long-form comparison (vs Context7 vs GitMCP vs Ref Tools)? See [`docs/comparison.md`](docs/comparison.md).
+
+<br />
+
+## The story
+
+I built docpilot because I got tired of doing the same dance every day.
+
+I'd been elbows-deep in two of my own libraries — [`tamimbinhakim/imprint-pdf`](https://github.com/tamimbinhakim/imprint-pdf) and [`tamimbinhakim/dyadpy`](https://github.com/tamimbinhakim/dyadpy) — refactoring APIs faster than I could ship them. The repos were the source of truth for what the libraries did. They had to be. I was the one writing the docs.
+
+Then I'd open a _different_ project to actually use those libraries — to dogfood them, see if the API I'd just shipped was any good. And the AI in that editor was, predictably, useless about my libraries. Of course it was. Its training data was months old, and even if it weren't, my last refactor was twenty minutes ago. So it would politely hallucinate an API that hadn't existed since last Tuesday, and I'd waste a turn correcting it.
+
+So I'd do the dance:
+
+1. Open the library's repo in another tab.
+2. Find `llms-full.txt` — and hope I'd remembered to regenerate it after the rename.
+3. Paste it into the chat. Watch a third of my context window evaporate on docs the model would have ignored half of anyway.
+4. Repeat tomorrow because I'd shipped another breaking change at 1 AM.
+
+I tried Context7. It's well-built and the team clearly cares. But its registry doesn't know about my libraries until it crawls them, and by their own admission, _"very recent releases — within days — may not be available yet."_ My library changed thirty minutes ago. I needed _now_, not within-days. And I didn't love that every query phrased the way I phrased it was sailing off to a third-party service so it could decide which "trust-scored" library to feed back to my model.
+
+The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a commit sha for reproducibility, pin to `@main` for HEAD. ETag-revalidate so repeat reads cost zero against your rate limit. Cache locally. No middleman. No registry. No account.
+
+That's docpilot. It's the tool I wanted on my own machine, six months ago.
 
 <br />
 
