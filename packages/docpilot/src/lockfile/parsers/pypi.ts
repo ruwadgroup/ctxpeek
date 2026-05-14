@@ -16,13 +16,13 @@ function parsePyProject(raw: string) {
   } catch {
     return [];
   }
-  const project = toml["project"] as
+  const project = toml.project as
     | {
         dependencies?: ReadonlyArray<string>;
       }
     | undefined;
   const poetry = (
-    toml["tool"] as
+    toml.tool as
       | {
           poetry?: { dependencies?: Record<string, string | { version?: string }> };
         }
@@ -31,7 +31,7 @@ function parsePyProject(raw: string) {
   const out: { name: string; version: string | undefined; direct: true }[] = [];
   for (const entry of project?.dependencies ?? []) {
     const match = /^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*(?:[<>=!~]=?|==)\s*([\w.+-]+))?/.exec(entry);
-    if (!match || !match[1]) continue;
+    if (!match?.[1]) continue;
     out.push({ name: match[1], version: match[2], direct: true });
   }
   if (poetry?.dependencies) {
@@ -50,7 +50,7 @@ function parseRequirementsTxt(raw: string) {
     const trimmed = line.split("#")[0]?.trim() ?? "";
     if (!trimmed || trimmed.startsWith("-")) continue;
     const m = /^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*(?:[<>=!~]=?|==)\s*([\w.+-]+))?/.exec(trimmed);
-    if (!m || !m[1]) continue;
+    if (!m?.[1]) continue;
     out.push({ name: m[1], version: m[2], direct: true });
   }
   return out;

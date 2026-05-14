@@ -8,7 +8,7 @@ async function loadDiff(): Promise<
   (a: string, b: string, label: string, from: string, to: string) => string
 > {
   const mod = (await import("../../src/tools/getChanges.js")) as Record<string, unknown>;
-  const fn = mod["unifiedDiff"];
+  const fn = mod.unifiedDiff;
   if (typeof fn === "function")
     return fn as (a: string, b: string, label: string, from: string, to: string) => string;
   throw new Error("unifiedDiff not exported");

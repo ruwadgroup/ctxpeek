@@ -37,7 +37,7 @@ export async function runDoctor(argv: ReadonlyArray<string> = []): Promise<Docto
 
   if (config) {
     checks.push(await checkCacheDir(config.paths.cache));
-    checks.push(await checkTokenScope(config.auth.token));
+    checks.push(await checkTokenScope(config.auth.token, config.auth.tokenSource, config.auth.ghAccount));
     checks.push(...(await checkForgeTokens()));
     checks.push(await checkGithubReachable(config.auth.token));
     if (config.fetch.cdnEnabled) checks.push(await checkCdnReachable());
@@ -95,13 +95,27 @@ async function checkCacheDir(cacheDir: string): Promise<DoctorCheck> {
   }
 }
 
-async function checkTokenScope(token: string | undefined): Promise<DoctorCheck> {
-  if (!token)
+async function checkTokenScope(
+  token: string | undefined,
+  source: "cli" | "env" | "gh" | "none",
+  ghAccount: string | undefined,
+): Promise<DoctorCheck> {
+  const name = "GitHub token";
+  if (!token) {
     return {
-      name: "GITHUB_TOKEN",
+      name,
       status: "warn",
-      detail: "not set — anonymous mode (60 req/hr REST)",
+      detail: "no token found — anonymous mode (60 req/hr REST). Run `gh auth login` or set GITHUB_TOKEN.",
     };
+  }
+  const sourceLabel =
+    source === "cli"
+      ? "from --token"
+      : source === "env"
+        ? "from $GITHUB_TOKEN"
+        : source === "gh"
+          ? `from \`gh auth token\`${ghAccount ? ` (account: ${ghAccount})` : ""}`
+          : "unknown source";
   const http = new HttpClient();
   try {
     const res = await http.fetch("https://api.github.com/user", {
@@ -114,46 +128,46 @@ async function checkTokenScope(token: string | undefined): Promise<DoctorCheck> 
     });
     if (res.status === 401)
       return {
-        name: "GITHUB_TOKEN",
+        name,
         status: "fail",
-        detail: "token rejected (401)",
+        detail: `${sourceLabel} — rejected by GitHub (401)`,
       };
     if (res.status === 403)
       return {
-        name: "GITHUB_TOKEN",
+        name,
         status: "warn",
-        detail: "token present, but 403 on /user",
+        detail: `${sourceLabel} — 403 on /user`,
       };
     if (res.status !== 200)
       return {
-        name: "GITHUB_TOKEN",
+        name,
         status: "warn",
-        detail: `unexpected ${res.status}`,
+        detail: `${sourceLabel} — unexpected ${res.status}`,
       };
     const login = (JSON.parse(res.body.toString("utf8")) as { login?: string }).login ?? "anon";
     const scopes = res.headers["x-oauth-scopes"] ?? "(fine-grained PAT)";
     const privateRepoNote = scopes.includes("repo") ? " — private repos accessible" : " — public repos only";
     return {
-      name: "GITHUB_TOKEN",
+      name,
       status: "ok",
-      detail: `valid (login=${login}, scopes=${scopes})${privateRepoNote}`,
+      detail: `${sourceLabel} — login=${login}, scopes=${scopes}${privateRepoNote}`,
     };
   } catch (err) {
     return {
-      name: "GITHUB_TOKEN",
+      name,
       status: "warn",
-      detail: `check failed: ${String(err)}`,
+      detail: `${sourceLabel} — check failed: ${String(err)}`,
     };
   }
 }
 
 async function checkForgeTokens(): Promise<DoctorCheck[]> {
   const out: DoctorCheck[] = [];
-  if (process.env["GITLAB_TOKEN"]) {
+  if (process.env.GITLAB_TOKEN) {
     const http = new HttpClient();
     try {
       const res = await http.fetch("https://gitlab.com/api/v4/user", {
-        headers: { "private-token": process.env["GITLAB_TOKEN"] ?? "" },
+        headers: { "private-token": process.env.GITLAB_TOKEN ?? "" },
         maxRetries: 0,
         timeoutMs: 6000,
       });
@@ -178,7 +192,7 @@ async function checkForgeTokens(): Promise<DoctorCheck[]> {
       });
     }
   }
-  if (process.env["BITBUCKET_TOKEN"]) {
+  if (process.env.BITBUCKET_TOKEN) {
     out.push({
       name: "BITBUCKET_TOKEN",
       status: "ok",

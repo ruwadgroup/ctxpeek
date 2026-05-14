@@ -8,7 +8,7 @@ export default defineLockfileParser({
     const out: { name: string; version: string | undefined; direct: true }[] = [];
     for (const line of raw.split(/\r?\n/)) {
       const m = /^\s*gem\s+['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?/.exec(line);
-      if (!m || !m[1]) continue;
+      if (!m?.[1]) continue;
       const version = m[2]?.replace(/^[~^]\s*>?=?/, "").trim();
       out.push({ name: m[1], version: version || undefined, direct: true });
     }

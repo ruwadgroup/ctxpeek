@@ -43,9 +43,9 @@ export function buildSearchDocsTool(ctx: ToolContext) {
       fuzzy: 0.2,
     });
     const hits: SearchHit[] = found.slice(0, input.limit).map((r) => {
-      const preview = typeof r["bodyPreview"] === "string" ? (r["bodyPreview"] as string) : "";
+      const preview = typeof r.bodyPreview === "string" ? (r.bodyPreview as string) : "";
       return {
-        path: r["path"] as string,
+        path: r.path as string,
         score: r.score,
         snippet: snippetAround(preview, input.query, input.snippet_chars),
       };

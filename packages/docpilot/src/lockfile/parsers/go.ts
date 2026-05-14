@@ -21,7 +21,7 @@ export default defineLockfileParser({
       if (t.startsWith("require ")) body = t.slice("require ".length);
       else if (!inRequireBlock) continue;
       const m = /^([A-Za-z0-9./_-]+)\s+(v\S+)/.exec(body);
-      if (!m || !m[1]) continue;
+      if (!m?.[1]) continue;
       out.push({ name: m[1], version: m[2], direct: true });
     }
     return out;

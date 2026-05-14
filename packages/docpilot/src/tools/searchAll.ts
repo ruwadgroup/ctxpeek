@@ -54,11 +54,11 @@ export function buildSearchAllTool(ctx: ToolContext) {
           resolved.snapshot.requestedRef ? `@${resolved.snapshot.requestedRef}` : ""
         }`;
         for (const h of hits.slice(0, input.limit_per_repo)) {
-          const preview = typeof h["bodyPreview"] === "string" ? (h["bodyPreview"] as string) : "";
+          const preview = typeof h.bodyPreview === "string" ? (h.bodyPreview as string) : "";
           all.push({
             repoLabel: label,
             hit: {
-              path: h["path"] as string,
+              path: h.path as string,
               score: h.score,
               snippet: snippetAround(preview, input.query, input.snippet_chars),
             },

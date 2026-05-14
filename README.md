@@ -129,16 +129,24 @@ That's docpilot. It's the tool I wanted on my own machine, six months ago.
   "mcpServers": {
     "docpilot": {
       "command": "npx",
-      "args": ["-y", "docpilot"],
-      "env": {
-        "GITHUB_TOKEN": "ghp_…optional but recommended"
-      }
+      "args": ["-y", "docpilot"]
     }
   }
 }
 ```
 
 **Cursor** (`~/.cursor/mcp.json`), **Windsurf**, and **VS Code** (`mcp.servers`) take the same shape.
+
+### Authentication
+
+docpilot looks for a GitHub token in this order — first one wins, none required:
+
+1. `--token <pat>` flag
+2. `$GITHUB_TOKEN` env var
+3. `gh auth token` if [the GitHub CLI](https://cli.github.com/) is installed and logged in
+4. Anonymous (60 req/hr REST, CDN does the heavy lifting)
+
+If you already run `gh auth login`, you're done — no env var to set. Run `docpilot doctor` to see which path was used and what scopes the token carries.
 
 **Codex CLI:**
 

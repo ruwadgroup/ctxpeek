@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { z } from "zod";
+import { readGhToken } from "./util/ghAuth.js";
 import {
   paths as buildPaths,
   type DocpilotPaths,
@@ -26,7 +27,12 @@ export type DocpilotConfig = {
     readonly honorRetryAfter: boolean;
     readonly cdnEnabled: boolean;
   };
-  readonly auth: { readonly tokenEnv: string; readonly token: string | undefined };
+  readonly auth: {
+    readonly tokenEnv: string;
+    readonly token: string | undefined;
+    readonly tokenSource: "cli" | "env" | "gh" | "none";
+    readonly ghAccount: string | undefined;
+  };
   readonly resolve: {
     readonly ecosystems: ReadonlyArray<Ecosystem>;
     readonly githubSearchFallback: boolean;
@@ -99,7 +105,7 @@ export async function loadConfig(
   const cli = parseCliOverrides(argv);
 
   const userConfigPath = path.join(
-    env["XDG_CONFIG_HOME"] ?? path.join(os.homedir(), ".config"),
+    env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config"),
     "docpilot",
     "config.toml",
   );
@@ -110,14 +116,39 @@ export async function loadConfig(
   const merged = mergeFileConfigs(userFile, repoFile);
 
   const tokenEnv = merged.auth?.github_token_env ?? "GITHUB_TOKEN";
-  const explicitToken = cli.token ?? env[tokenEnv] ?? env["GITHUB_TOKEN"] ?? undefined;
+
+  // Token resolution order:
+  //   1. --token CLI flag
+  //   2. $GITHUB_TOKEN env var (or whatever auth.github_token_env names)
+  //   3. `gh auth token` if the `gh` CLI is installed + logged in
+  //   4. None (anonymous, 60 req/hr REST per IP)
+  let token: string | undefined;
+  let tokenSource: "cli" | "env" | "gh" | "none" = "none";
+  let ghAccount: string | undefined;
+  if (cli.token) {
+    token = cli.token;
+    tokenSource = "cli";
+  } else if (env[tokenEnv]) {
+    token = env[tokenEnv];
+    tokenSource = "env";
+  } else if (env.GITHUB_TOKEN) {
+    token = env.GITHUB_TOKEN;
+    tokenSource = "env";
+  } else {
+    const fromGh = readGhToken("github.com");
+    if (fromGh) {
+      token = fromGh.token;
+      ghAccount = fromGh.account;
+      tokenSource = "gh";
+    }
+  }
 
   const cacheDir = cli.cacheDir ?? merged.cache?.dir ?? defaultPaths().cache;
   const base = defaultPaths();
   const paths = cli.cacheDir || merged.cache?.dir ? buildPaths(cacheDir, base.config, base.logs) : base;
 
   const cdnEnabled = !cli.noCdn && (merged.fetch?.cdn_enabled ?? true);
-  const preferCdn = cli.cdnOnly || (merged.fetch?.prefer_cdn ?? !explicitToken);
+  const preferCdn = cli.cdnOnly || (merged.fetch?.prefer_cdn ?? !token);
 
   return {
     paths,
@@ -135,7 +166,9 @@ export async function loadConfig(
     },
     auth: {
       tokenEnv,
-      token: explicitToken,
+      token,
+      tokenSource,
+      ghAccount,
     },
     resolve: {
       ecosystems: (merged.resolve?.ecosystems ?? ["npm", "pypi", "crates", "go", "rubygems"]) as Ecosystem[],
@@ -147,7 +180,7 @@ export async function loadConfig(
     logLevel:
       cli.logLevel ??
       merged.log?.level ??
-      (env["DOCPILOT_LOG_LEVEL"] as DocpilotConfig["logLevel"] | undefined) ??
+      (env.DOCPILOT_LOG_LEVEL as DocpilotConfig["logLevel"] | undefined) ??
       "info",
   };
 }

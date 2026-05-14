@@ -168,13 +168,13 @@ export class GithubRestClient {
     };
     const res = await this.executeWithLimiter(url, init);
     if (res.status === 304) {
-      return { status: 304, etag: res.headers["etag"], bytes: undefined };
+      return { status: 304, etag: res.headers.etag, bytes: undefined };
     }
     if (res.status === 404) return { status: 404, etag: undefined, bytes: undefined };
     if (res.status === 200) {
       return {
         status: 200,
-        etag: res.headers["etag"],
+        etag: res.headers.etag,
         bytes: new Uint8Array(res.body),
       };
     }
@@ -328,7 +328,7 @@ export class GithubRestClient {
       "x-github-api-version": "2022-11-28",
       accept: "application/vnd.github+json",
     };
-    if (this.token) out["authorization"] = `Bearer ${this.token}`;
+    if (this.token) out.authorization = `Bearer ${this.token}`;
     return out;
   }
 

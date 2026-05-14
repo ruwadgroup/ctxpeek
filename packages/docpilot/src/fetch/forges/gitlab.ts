@@ -43,7 +43,7 @@ function buildClient(ctx: ForgeBootContext): ForgeClient {
         return {
           status: 304,
           data: null,
-          etag: res.headers["etag"],
+          etag: res.headers.etag,
           body: res.body,
         };
       if (res.status === 404) return { status: 404, data: null, etag: undefined, body: res.body };
@@ -51,14 +51,14 @@ function buildClient(ctx: ForgeBootContext): ForgeClient {
         return {
           status: res.status,
           data: JSON.parse(res.body.toString("utf8")) as T,
-          etag: res.headers["etag"],
+          etag: res.headers.etag,
           body: res.body,
         };
       } catch {
         return {
           status: res.status,
           data: null,
-          etag: res.headers["etag"],
+          etag: res.headers.etag,
           body: res.body,
         };
       }

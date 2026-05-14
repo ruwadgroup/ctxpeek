@@ -7,7 +7,7 @@ export default defineLockfileParser({
   parse: (raw) => {
     const out: { name: string; version: string | undefined; direct: true }[] = [];
     const depsBlock = /defp deps[^{]*do\s*\[([\s\S]*?)\]\s*end/.exec(raw);
-    if (!depsBlock || !depsBlock[1]) return out;
+    if (!depsBlock?.[1]) return out;
     for (const m of depsBlock[1].matchAll(/\{:([A-Za-z_][\w]*)\s*,\s*"([^"]+)"/g)) {
       const name = m[1];
       const versionRaw = m[2];
