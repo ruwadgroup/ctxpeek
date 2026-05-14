@@ -55,7 +55,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ci": "vitest run --reporter=default --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "tsc -b && vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "doctor": "node dist/server.js doctor"
   },
