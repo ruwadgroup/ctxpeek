@@ -48,13 +48,13 @@
 
 ## What it does
 
-You point an MCP client at docpilot:
+Add docpilot to your MCP client — it runs as a local stdio server:
 
 ```bash
 npx -y docpilot
 ```
 
-Drop that into any MCP-capable client (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI). Then in chat, you say things like _"show me the routing docs from `vercel/next.js@v15.0.0`"_ — and your model calls docpilot, docpilot fetches the actual file from the actual repo at the actual version, returns it as markdown, and your model gets to work with information it can trust.
+Configure it in any MCP-capable client (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI). Then in chat, you say things like _"show me the routing docs from `vercel/next.js@v15.0.0`"_ — and your model calls docpilot, docpilot fetches the actual file from the actual repo at the actual version, returns it as markdown, and your model gets to work with information it can trust.
 
 It also resolves fuzzy names — `"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex — and can search across your whole project's deps in one call (`search_all`).
 
