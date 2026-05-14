@@ -6,14 +6,14 @@ This package is **internal** to the docpilot monorepo. It is not published to np
 
 ## Layout
 
-```
+```ts
 src/
 ├── types/
-│   ├── repoSpec.ts        Forge + RepoSpec + RepoSpecString brand
-│   ├── snapshot.ts        Snapshot + BlobRef
-│   └── toolResult.ts      MCP-shaped ToolResult
-├── errors.ts              DocpilotError hierarchy
-└── index.ts               Barrel
+│   ├── repoSpec.ts       // Forge + RepoSpec + RepoSpecString brand
+│   ├── snapshot.ts       // Snapshot + BlobRef
+│   └── toolResult.ts     // MCP-shaped ToolResult
+├── errors.ts             // DocpilotError hierarchy
+└── index.ts              // Barrel
 ```
 
 ## Why a separate package
