@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { fetchBlob } from "../fetch/strategy.js";
 import { approxTokens, renderFrontmatter } from "../format/frontmatter.js";
-import { summarizeMarkdown } from "../format/summarize.js";
 import { fetchContextFrom, resolveSnapshot, type ToolContext } from "./context.js";
 
 export const fetchDocInput = z.object({
@@ -82,7 +81,6 @@ function renderBody(
   source: "cache" | "rest" | "cdn" | "graphql",
   partial: boolean,
 ): string {
-  const summary = !partial && isMarkdownPath(path) ? summarizeMarkdown(body) : "";
   const fm = renderFrontmatter({
     repo: `${resolved.owner}/${resolved.repo}`,
     ref: resolved.snapshot.requestedRef,
@@ -91,16 +89,11 @@ function renderBody(
     size: fullSize,
     source,
     tokensApprox: approxTokens(body),
-    ...(summary ? { summary } : {}),
   });
   const note = partial
     ? "\n> Returning a partial slice; call without `lines`/`head_bytes` for the full file.\n"
     : "";
   return `${fm}\n${note}${body}`;
-}
-
-function isMarkdownPath(p: string): boolean {
-  return /\.(md|mdx|rst|adoc|txt)$/i.test(p);
 }
 
 function qualifyPath(filePath: string, subpath: string | undefined): string {
