@@ -16,6 +16,7 @@ import { sleep } from "../util/promise.js";
 export type RateLimitState = {
   readonly remaining: number | undefined;
   readonly resetAt: Date | undefined;
+  readonly observedAt: Date | undefined;
 };
 
 export type RateLimitSnapshot = RateLimitState & {
@@ -42,6 +43,7 @@ export class RateLimiter {
   private lastRefill = Date.now();
   private latestRemaining: number | undefined;
   private latestResetAt: Date | undefined;
+  private latestObservedAt: Date | undefined;
   private degraded = false;
   private statePath: string | undefined;
   private lastPersist = 0;
@@ -67,24 +69,34 @@ export class RateLimiter {
       if (reset.getTime() > Date.now()) {
         this.latestResetAt = reset;
         if (typeof data.remaining === "number") this.latestRemaining = data.remaining;
+        const updatedAt = Date.parse(data.updatedAt);
+        if (Number.isFinite(updatedAt)) this.latestObservedAt = new Date(updatedAt);
         if (data.degraded) this.degraded = true;
       }
     }
   }
 
   isDegraded(): boolean {
+    this.normalizePrimaryWindow();
     return this.degraded;
   }
 
   state(): RateLimitState {
-    return { remaining: this.latestRemaining, resetAt: this.latestResetAt };
+    this.normalizePrimaryWindow();
+    return {
+      remaining: this.latestRemaining,
+      resetAt: this.latestResetAt,
+      observedAt: this.latestObservedAt,
+    };
   }
 
   snapshot(): RateLimitSnapshot {
     this.refill();
+    this.normalizePrimaryWindow();
     return {
       remaining: this.latestRemaining,
       resetAt: this.latestResetAt,
+      observedAt: this.latestObservedAt,
       degraded: this.degraded,
       inflight: this.inflight,
       queued: this.waiters.length,
@@ -117,7 +129,7 @@ export class RateLimiter {
       const n = Number(remHeader);
       if (Number.isFinite(n)) {
         this.latestRemaining = n;
-        if (n < 100) this.degraded = true;
+        this.degraded = n < 100;
         dirty = true;
       }
     }
@@ -128,7 +140,11 @@ export class RateLimiter {
         dirty = true;
       }
     }
-    if (dirty) this.schedulePersist();
+    if (dirty) {
+      this.latestObservedAt = new Date();
+      this.normalizePrimaryWindow();
+      this.schedulePersist();
+    }
   }
 
   private schedulePersist(): void {
@@ -142,7 +158,7 @@ export class RateLimiter {
       remaining: this.latestRemaining ?? null,
       resetAt: this.latestResetAt ? this.latestResetAt.toISOString() : null,
       degraded: this.degraded,
-      updatedAt: new Date().toISOString(),
+      updatedAt: (this.latestObservedAt ?? new Date()).toISOString(),
     };
     writeJson(path, payload).catch(() => {
       // Best-effort. A failed persist is harmless; we just re-burn budget
@@ -167,5 +183,13 @@ export class RateLimiter {
     const tokens = (elapsedMs / 60_000) * this.perMinute;
     this.bucketTokens = Math.min(this.perMinute, this.bucketTokens + tokens);
     this.lastRefill = now;
+  }
+
+  private normalizePrimaryWindow(): void {
+    if (!this.latestResetAt || this.latestResetAt.getTime() > Date.now()) return;
+    this.latestRemaining = undefined;
+    this.latestResetAt = undefined;
+    this.latestObservedAt = undefined;
+    this.degraded = false;
   }
 }

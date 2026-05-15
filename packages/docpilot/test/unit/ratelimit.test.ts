@@ -19,12 +19,14 @@ describe("RateLimiter", () => {
   });
   it("stores reset epoch as Date", () => {
     const rl = new RateLimiter();
-    rl.observe({ "x-ratelimit-reset": "1717000000" });
-    expect(rl.state().resetAt?.getTime()).toBe(1717000000 * 1000);
+    const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
+    rl.observe({ "x-ratelimit-reset": String(futureEpoch) });
+    expect(rl.state().resetAt?.getTime()).toBe(futureEpoch * 1000);
   });
   it("exposes local limiter accounting as a snapshot", () => {
     const rl = new RateLimiter(4, 30);
-    rl.observe({ "x-ratelimit-remaining": "120", "x-ratelimit-reset": "1717000000" });
+    const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
+    rl.observe({ "x-ratelimit-remaining": "120", "x-ratelimit-reset": String(futureEpoch) });
     expect(rl.snapshot()).toMatchObject({
       remaining: 120,
       degraded: false,

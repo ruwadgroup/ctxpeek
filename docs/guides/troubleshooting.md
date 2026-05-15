@@ -44,9 +44,11 @@ Inspect the local cache state any time:
 npx -y docpilot cache status
 ```
 
+Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. Use `rate_limits({ live: false })` when you want to avoid the live GitHub check.
+
 ## "Library not found" from `resolve_repo`
 
-By design, docpilot returns `Ambiguous` (top-5 candidates) rather than guessing. If you got `NotFound`, the registry probes (npm, PyPI, crates, Go, RubyGems, Packagist, Hex) and a GitHub `/search/repositories` query all came back empty.
+By design, docpilot returns `Ambiguous` candidates rather than guessing. If you got `NotFound`, project-context matching, registry probes/searches (npm, PyPI, crates, Go, RubyGems, Packagist, Hex), package-manifest verification, and the GitHub `/search/repositories` fallback all came back empty.
 
 Bypass the resolver: pass `owner/repo` directly. docpilot only resolves fuzzy names — canonical specs go straight through.
 

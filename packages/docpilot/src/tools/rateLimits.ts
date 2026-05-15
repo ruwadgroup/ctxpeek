@@ -21,36 +21,48 @@ type GitHubRateLimitResponse = {
 
 export function buildRateLimitsTool(ctx: ToolContext) {
   return async (input: RateLimitsInput): Promise<string> => {
+    const live = input.live ?? true;
     const lines: string[] = [];
     lines.push("# Rate limits");
     lines.push("");
-    lines.push(...renderLocalSnapshot(ctx.limiter.snapshot()));
 
-    if (input.live) {
-      lines.push("");
+    if (live) {
       lines.push(...(await renderLiveGithubLimits(ctx)));
-    } else {
       lines.push("");
-      lines.push("Pass `{ live: true }` to query GitHub's `/rate_limit` endpoint.");
+      lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: false }));
+    } else {
+      lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: true }));
+      lines.push("");
+      lines.push(
+        "Live GitHub check skipped. Primary values above are only the last response headers docpilot observed.",
+      );
     }
 
     return lines.join("\n");
   };
 }
 
-function renderLocalSnapshot(snapshot: RateLimitSnapshot): string[] {
+function renderLocalSnapshot(
+  snapshot: RateLimitSnapshot,
+  options: { readonly includePrimary: boolean },
+): string[] {
   const reset = snapshot.resetAt ? snapshot.resetAt.toISOString() : "unknown";
-  return [
-    "## Local limiter",
-    "",
-    `Primary remaining: ${snapshot.remaining ?? "unknown"}`,
-    `Primary reset:     ${reset}`,
-    `Degraded mode:     ${snapshot.degraded ? "yes" : "no"}`,
-    `Inflight/queued:   ${snapshot.inflight}/${snapshot.queued}`,
-    `Secondary bucket:  ${snapshot.bucketTokens}/${snapshot.bucketCapacity} tokens`,
-    `Secondary budget:  ${snapshot.secondaryBudgetPerMinute}/min`,
-    `Concurrent max:    ${snapshot.concurrentMax}`,
-  ];
+  const observed = snapshot.observedAt ? snapshot.observedAt.toISOString() : "never";
+  const lines = ["## Local throttler", ""];
+  if (options.includePrimary) {
+    lines.push(
+      `Last GitHub primary: ${snapshot.remaining ?? "unknown"}`,
+      `Observed at:         ${observed}`,
+      `Primary reset:       ${reset}`,
+    );
+  }
+  lines.push(
+    `Mode:                ${snapshot.degraded ? "degraded" : "normal"}`,
+    `Requests:            ${snapshot.inflight} running, ${snapshot.queued} queued`,
+    `Secondary budget:    ${snapshot.secondaryBudgetPerMinute}/min (${snapshot.bucketTokens}/${snapshot.bucketCapacity} tokens available)`,
+    `Concurrency:         ${snapshot.concurrentMax} max`,
+  );
+  return lines;
 }
 
 async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
@@ -69,10 +81,10 @@ async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
     });
     ctx.limiter.observe(res.headers);
     if (res.status !== 200) {
-      return ["## GitHub live", "", `GitHub returned HTTP ${res.status}.`];
+      return ["## GitHub API (live)", "", `GitHub returned HTTP ${res.status}.`];
     }
     const data = JSON.parse(res.body.toString("utf8")) as GitHubRateLimitResponse;
-    const lines = ["## GitHub live", ""];
+    const lines = ["## GitHub API (live)", ""];
     for (const name of ["core", "search", "graphql"] as const) {
       const resource = data.resources?.[name];
       if (!resource) continue;
@@ -82,7 +94,7 @@ async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
     }
     return lines;
   } catch (err) {
-    return ["## GitHub live", "", `Check failed: ${String(err)}`];
+    return ["## GitHub API (live)", "", `Check failed: ${String(err)}`];
   } finally {
     ctx.limiter.release();
   }

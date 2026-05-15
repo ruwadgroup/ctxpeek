@@ -57,9 +57,13 @@ src/
 │   ├── githubSearch.ts
 │   ├── extractGithub.ts
 │   ├── defineRegistry.ts
-│   └── registries/                    // One file per registry plug-in
-│       ├── npm.ts, pypi.ts, crates.ts, go.ts
-│       └── rubygems.ts, packagist.ts, hex.ts
+│   ├── definePackageManifest.ts
+│   ├── packageManifest.ts
+│   ├── resolutionCache.ts
+│   ├── registries/                    // One file per registry plug-in
+│   │   ├── npm.ts, pypi.ts, crates.ts, go.ts
+│   │   └── rubygems.ts, packagist.ts, hex.ts
+│   └── packageManifests/              // One file per manifest verifier
 ├── lockfile/                          // Direct-dep extraction
 │   ├── defineLockfileParser.ts
 │   └── parsers/                       // One file per language plug-in

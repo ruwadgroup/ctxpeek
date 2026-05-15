@@ -86,7 +86,7 @@ Context7 starts from a library ID in a hosted documentation corpus, then returns
 | **Agent workflow**           | Good for "give me the relevant snippet for this topic."                                           | Good for "show me this project's docs at this version, then let the agent navigate."                                                    |
 | **Monorepos**                | The library ID usually points at a selected docs surface.                                         | `#subpath` is first-class: `vercel/next.js@canary#packages/next/src/lib`.                                                               |
 | **Library coverage**         | Curated registry. If it is not in the corpus, it must be added first.                             | Any public repo on GitHub, GitLab, or Bitbucket. Including your own libraries and unreleased branches.                                  |
-| **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` checks package registries first, GitHub search last, and returns alternatives when ambiguous.                            |
+| **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` verifies registry candidates on the forge, scores package/repo evidence, and returns alternatives when ambiguous.        |
 | **Prompt-injection surface** | A hosted documentation layer can add authoring or policy surface beyond the upstream repo.        | No third-party authoring layer. docpilot serves files from the repo/ref you named. Content-layer bugs, like a malicious README, remain. |
 | **Operational model**        | Hosted service, optional account/API key for higher usage.                                        | Local stdio MCP process. Bring a forge token or use public CDN fallbacks.                                                               |
 | **Privacy**                  | Queries go to the hosted service.                                                                 | Query privacy falls out of the architecture, but it is not the main pitch. The main pitch is ref-addressed source-of-truth docs.        |
@@ -209,9 +209,9 @@ Full grammar: [`docs/reference/repo-spec.md`](docs/reference/repo-spec.md).
 ## Tools
 
 ```ts
-resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm. Manifest-aware: prefers a dep
-              // already in your cwd lockfile. Returns the latest release tag so the
-              // planner can pin on the first call.
+resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm. Project-aware: prefers
+              // cwd/ancestor deps and npm workspace packages, including repo#subpath.
+              // Returns the latest release tag so the planner can pin on the first call.
 list_docs     // Markdown tree of docs files, with size hints, freshness badges,
               // llms.txt highlights. Optional `since: "2025-04-01"` filter for
               // "what changed after the model's training cutoff?".
@@ -223,6 +223,7 @@ changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
 related_repos // Scrape README + llms.txt for github.com peer links — "often used with…".
 get_issues    // Search a repo's issues / PRs (separate /search/issues bucket, 30/min).
 cache_status  // Diagnostic: cache hits, sizes, snapshot sha, last revalidate.
+rate_limits   // Live GitHub core/search/graphql buckets plus local throttle state.
 ```
 
 Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).
@@ -317,7 +318,7 @@ No telemetry. No analytics. Your query strings never leave your machine except a
 
 - _No third-party authoring channel._ The ContextCrush class can't exist here — there's no registry layer, no place for anyone other than the actual repo maintainer to author content delivered to your agent.
 - _No hosted query log._ Outbound calls are the ones above, only when you make them.
-- _No "trust score" you can't see._ Resolution is a transparent race across package registries, GitHub stars as the last resort. Candidates are returned to the model when ambiguous.
+- _No opaque hosted trust score._ Resolution uses visible registry/forge evidence: URL field, package-name match, optional package-manifest verification, repo stars, and GitHub search only as the final fallback. Candidates are returned to the model when ambiguous.
 
 **What docpilot does _not_ solve**
 
@@ -376,13 +377,13 @@ The current baseline is done: the MCP server, resolver, doc tree/fetch tools, ch
 
 The next roadmap pass is planning work, not a committed release train:
 
-| Area              | Planning direction                                                                                               | Status  |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ------- |
-| Freshness UX      | Clearer branch/ref freshness messaging, richer per-file last-commit signals, and better changed-since workflows. | Scoping |
-| Monorepos         | Smoother `#subpath` discovery, clearer examples/cookbook surfacing, and better large-tree behavior.              | Scoping |
-| Auth + forges     | Harden private-repo paths, document token scopes per forge, and evaluate Codeberg / Gitea / sourcehut adapters.  | Scoping |
-| Ecosystem breadth | More lockfile parsers and registry probes where they materially improve `resolve_repo` and manifest-aware flows. | Backlog |
-| v1 readiness      | Schema freeze, SLO docs, security review, release hygiene, and sharper compatibility notes for MCP clients.      | Backlog |
+| Area              | Planning direction                                                                                                                                       | Status      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| Freshness UX      | Clearer branch/ref freshness messaging, richer per-file last-commit signals, and better changed-since workflows.                                         | Scoping     |
+| Monorepos         | Extend `#subpath` inference beyond npm workspaces and repository-directory metadata; clearer examples/cookbook surfacing and better large-tree behavior. | In progress |
+| Auth + forges     | Harden private-repo paths, document token scopes per forge, and evaluate Codeberg / Gitea / sourcehut adapters.                                          | Scoping     |
+| Ecosystem breadth | More lockfile parsers and registry probes where they materially improve `resolve_repo` and manifest-aware flows.                                         | Backlog     |
+| v1 readiness      | Schema freeze, SLO docs, security review, release hygiene, and sharper compatibility notes for MCP clients.                                              | Backlog     |
 
 What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, a hosted resolver as authority, a curated library registry, or write operations on repos. See [non-goals in the architecture doc](docs/internals/architecture.md#why-this-shape).
 

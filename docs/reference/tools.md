@@ -221,13 +221,13 @@ Pass `{ repo: "owner/repo" }` for a per-repo ref breakdown.
 
 ## `rate_limits(opts?)`
 
-Show local rate-limit accounting and, optionally, GitHub's live `/rate_limit` view.
+Show GitHub's live `/rate_limit` view and local throttler accounting.
 
 **Input**
 
 ```ts
 {
-  live?: boolean // default false; true spends one GitHub REST request
+  live?: boolean // default true; false skips the live GitHub check
 }
 ```
 
@@ -236,15 +236,18 @@ Show local rate-limit accounting and, optionally, GitHub's live `/rate_limit` vi
 ```markdown
 # Rate limits
 
-## Local limiter
+## GitHub API (live)
 
-Primary remaining: 4212
-Primary reset:     2026-05-15T07:00:00.000Z
-Degraded mode:     no
-Inflight/queued:   0/0
-Secondary bucket:  59.8/60 tokens
-Secondary budget:  60/min
-Concurrent max:    8
+core: 4212/5000 remaining, used 788, reset 2026-05-15T07:00:00.000Z
+search: 30/30 remaining, used 0, reset 2026-05-15T06:06:00.000Z
+graphql: 4995/5000 remaining, used 5, reset 2026-05-15T07:00:00.000Z
+
+## Local throttler
+
+Mode:                normal
+Requests:            0 running, 0 queued
+Secondary budget:    60/min (59.8/60 tokens available)
+Concurrency:         8 max
 ```
 
-Use `{ live: true }` when you need the authoritative GitHub `core`, `search`, and `graphql` buckets.
+Use `{ live: false }` to skip the GitHub call. In that mode, the local section also includes the last primary headers docpilot observed.

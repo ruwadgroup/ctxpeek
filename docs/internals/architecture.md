@@ -58,17 +58,18 @@ Turns fuzzy names into canonical `owner/repo`. Algorithm:
 ```
 function resolve_repo(query, hint?):
   q = normalize(query)
-  if q is "owner/repo" shape:           return verify_on_github(q)
+  if q is "[forge:]owner/repo[#path]":  return verify_on_forge(q)
 
-  # Manifest preflight: if the cwd has a lockfile and the query matches a
-  # dep by name or scope (e.g. "autotranslate" → @autotranslate/cli),
-  # resolve that exact package instead of the bare query.
-  manifest_hit = find_manifest_match(q)
-  if manifest_hit:                      q = manifest_hit.name
+  # Project preflight: inspect cwd + ancestor manifests and npm workspaces.
+  # If the query matches a dep, local package, or workspace package, resolve
+  # that exact package or inherited repo#subpath instead of the bare query.
+  project_hit = find_project_match(q)
+  if project_hit.repo_spec:             return verify_on_forge(project_hit.repo_spec)
+  if project_hit.package_name:          q = project_hit.package_name
 
   if cache.has(q) and not force_refresh: return cache.get(q)
 
-  candidates = race([                   # parallel, ~1.5s each, with GH search side-channel
+  candidates = collect([                # parallel, ~1.5s each
     npm registry,
     pypi,
     crates.io,
@@ -78,16 +79,21 @@ function resolve_repo(query, hint?):
     hex,
   ])
 
-  if any returns github.com URL:
-    winner = verify_and_enrich(that)    # getRepo → fills stars + defaultBranch + latestTag
-    if winner:                          return winner + gh_search_alternatives
+  if registry candidates:
+    verified = verify_on_forge(candidates)  # fills stars + defaultBranch + metadata
+    scored = score(verified, url_field, package_name, manifest_match, stars)
+    if scored.best:                         return best + alternatives + ambiguity
 
-  # No registry winner: GH /search/repositories (30/min separate bucket)
+  # No registry winner: package-registry search, then GH /search/repositories.
+  registry_search_candidates = search_registries(q)
+  if registry_search_candidates:        retry verified/scored path
+
+  # GitHub search remains the final fallback (30/min separate bucket).
   results = github_search(q)
   if no results:                        return NotFound
 
   top = sorted_by_stars(results)[0]
-  latest_tag = tryGetLatestTag(top)     # one /releases/latest call
+  latest_tag = tryGetLatestTag(top)     # one cached /releases/latest call
 
   dominant = !second || top.stars > 10 × second.stars
   if dominant:                          confidence = 0.85
@@ -95,7 +101,7 @@ function resolve_repo(query, hint?):
   else:                                 confidence = 0.55  # ambiguous, markdown picker
 ```
 
-The resolution cache stores verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`) and has a 30-day TTL per entry. Releases shipped inside that window can leave `latestTag` stale until `force_refresh` or the entry expires.
+The resolution cache stores verified forge metadata (`forge`, `owner`, `repo`, `subpath`, `stars`, `defaultBranch`, `latestTag`, `confidence`) plus alternatives and ambiguity state. It has a 30-day TTL per entry. Releases shipped inside that window can leave `latestTag` stale until `force_refresh` or the entry expires.
 
 ### 4. Fetch strategy (`src/fetch/`)
 

@@ -21,7 +21,7 @@ docpilot treats documentation as a git snapshot: `[forge:]owner/repo[@ref][#subp
 | Token efficiency        | Tree + frontmatter; self-reports cost           | Larger; users report bloat                       | Medium                 | Tight                |
 | Offline cache           | Yes, snapshot-addressed                         | No (hosted)                                      | No (hosted)            | Partial              |
 | Navigation shape        | Tree → path → file                              | Top-k snippets from a hosted index               | URL-based              | Per-source index     |
-| Fuzzy name resolution   | npm/PyPI/crates first, GitHub last              | Internal trust-scored registry                   | URL-based              | N/A                  |
+| Fuzzy name resolution   | Project-aware registry scoring; GitHub last     | Internal trust-scored registry                   | URL-based              | N/A                  |
 | Monorepo subpath        | First-class `#subpath`                          | Limited                                          | Limited                | N/A                  |
 | Code search             | Out of scope (use github-mcp-server)            | Code snippets included                           | Code search            | No                   |
 | License (server)        | Apache-2.0                                      | Custom (npm package MIT; service ToS bind)       | MIT                    | Closed/freemium      |
