@@ -30,12 +30,18 @@ export type CtxpeekConfig = {
   readonly resolve: {
     readonly ecosystems: ReadonlyArray<Ecosystem>;
     readonly githubSearchFallback: boolean;
+    readonly packageMappings: ReadonlyArray<PackageMapping>;
   };
   readonly experiments: { readonly prewarmFromLockfile: boolean };
   readonly logLevel: "debug" | "info" | "warn" | "error";
 };
 
 export type Ecosystem = "npm" | "pypi" | "crates" | "go" | "rubygems" | "packagist" | "hex";
+export type PackageMapping = {
+  readonly name: string;
+  readonly spec: string;
+  readonly ecosystem: Ecosystem | undefined;
+};
 
 const ECOSYSTEMS = ["npm", "pypi", "crates", "go", "rubygems", "packagist", "hex"] as const;
 
@@ -67,6 +73,15 @@ const FileSchema = z
         ecosystems: z.array(z.enum(ECOSYSTEMS)).optional(),
         github_search_fallback: z.boolean().optional(),
       })
+      .optional(),
+    package: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          spec: z.string().min(1),
+          ecosystem: z.enum(ECOSYSTEMS).optional(),
+        }),
+      )
       .optional(),
     experiments: z
       .object({
@@ -167,6 +182,11 @@ export async function loadConfig(
     resolve: {
       ecosystems: (merged.resolve?.ecosystems ?? [...ECOSYSTEMS]) as Ecosystem[],
       githubSearchFallback: merged.resolve?.github_search_fallback ?? true,
+      packageMappings: (merged.package ?? []).map((mapping) => ({
+        name: mapping.name,
+        spec: mapping.spec,
+        ecosystem: mapping.ecosystem,
+      })),
     },
     experiments: {
       prewarmFromLockfile: merged.experiments?.prewarm_from_lockfile ?? false,
@@ -250,7 +270,9 @@ function mergeFileConfigs(...sources: ReadonlyArray<FileConfig | null>): FileCon
     for (const [k, v] of Object.entries(s)) {
       if (v === undefined) continue;
       const prev = (out as Record<string, unknown>)[k];
-      if (
+      if (k === "package" && Array.isArray(prev) && Array.isArray(v)) {
+        (out as Record<string, unknown>)[k] = mergePackageMappings(prev, v);
+      } else if (
         prev &&
         typeof prev === "object" &&
         typeof v === "object" &&
@@ -267,4 +289,28 @@ function mergeFileConfigs(...sources: ReadonlyArray<FileConfig | null>): FileCon
     }
   }
   return out;
+}
+
+function mergePackageMappings(
+  base: ReadonlyArray<unknown>,
+  overlay: ReadonlyArray<unknown>,
+): ReadonlyArray<unknown> {
+  const byName = new Map<string, unknown>();
+  for (const mapping of base) {
+    byName.set(packageMappingKey(mapping), mapping);
+  }
+  for (const mapping of overlay) {
+    byName.set(packageMappingKey(mapping), mapping);
+  }
+  return [...byName.values()];
+}
+
+function packageMappingKey(mapping: unknown): string {
+  if (!mapping || typeof mapping !== "object") return "";
+  const name = (mapping as { name?: unknown }).name;
+  return typeof name === "string" ? normalizePackageMappingName(name) : "";
+}
+
+function normalizePackageMappingName(name: string): string {
+  return name.toLowerCase().replace(/[._-]/g, "");
 }

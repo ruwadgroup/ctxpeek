@@ -7,7 +7,6 @@
  *   commit: a3b1f7c
  *   path: docs/.../routing.mdx
  *   size: 8923
- *   ~tokens: 2150
  *   ---
  *
  * Doubles as machine-parseable metadata.
@@ -20,7 +19,7 @@ export type DocFrontmatter = {
   readonly size: number;
   readonly lastModified?: string;
   readonly source?: "cache" | "rest" | "cdn" | "graphql";
-  readonly tokensApprox: number;
+  readonly tokensApprox?: number;
 };
 
 export function renderFrontmatter(fm: DocFrontmatter): string {
@@ -32,7 +31,7 @@ export function renderFrontmatter(fm: DocFrontmatter): string {
   lines.push(`size: ${fm.size}`);
   if (fm.lastModified) lines.push(`last_modified: ${fm.lastModified}`);
   if (fm.source) lines.push(`source: ${fm.source}`);
-  lines.push(`~tokens: ${fm.tokensApprox}`);
+  if (fm.tokensApprox !== undefined) lines.push(`~tokens: ${fm.tokensApprox}`);
   lines.push("---");
   return lines.join("\n");
 }

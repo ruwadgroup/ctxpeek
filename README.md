@@ -69,7 +69,7 @@ What you get out of the box:
 - **Ref-native by default.** Branch, tag, commit sha, and monorepo subpath are part of the input: `owner/repo@ref#subpath`.
 - **Version-pinned docs without ingestion.** `owner/repo@v15.0.0`, `owner/repo@main`, and `owner/repo@<sha>` all read the matching git snapshot directly.
 - **Free, forever.** Bring your own GitHub PAT — or none. A warm cache reads locally; authenticated conditional REST responses that return 304 do not count against your GitHub primary rate limit.
-- **Markdown out, not JSON.** ~75% smaller for the same information. Every response self-reports `~tokens` so the model can budget.
+- **Markdown out, not JSON.** ~75% smaller for the same information. Docs trees and large-file guards self-report `~tokens` where it helps the model budget.
 - **No third-party instruction channel.** ctxpeek only serves file contents from repos you name. The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry) is structurally absent — see [Threat model](#threat-model).
 
 <br />
@@ -300,7 +300,7 @@ changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
 related_repos // Scrape README + llms.txt for github.com peer links — "often used with…".
 get_issues    // Search a repo's issues / PRs (separate /search/issues bucket, 30/min).
 cache_status  // Diagnostic: cache hits, sizes, snapshot sha, last revalidate.
-rate_limits   // GitHub buckets plus local throttle state, with automatic fallback.
+rate_limits   // GitHub buckets; pass `details: true` for local throttle internals.
 ```
 
 Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).

@@ -36,6 +36,8 @@ jsDelivr permanently caches by commit-pinned URL. Limits: **50 MB per file** on 
 
 **This is the main rate-limit win:** unauthenticated ctxpeek users can pull many GitHub docs files through jsDelivr with zero impact on GitHub's primary or anonymous limits.
 
+A CDN 404 is not treated as final when a forge API fallback exists. Fresh public commits can take time to appear on the CDN, and private repos are not CDN-readable; both cases fall through to authenticated REST/ETag.
+
 ### Step 2 — Conditional GET on REST contents
 
 When CDN is disabled, unavailable, or unsupported for the forge, ctxpeek calls the forge contents endpoint with `If-None-Match` if it has an ETag.

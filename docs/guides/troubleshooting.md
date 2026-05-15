@@ -44,7 +44,7 @@ Inspect the local cache state any time:
 npx -y ctxpeek cache status
 ```
 
-Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. If GitHub is unreachable, ctxpeek detects that automatically, pauses GitHub checks briefly, and falls back to the local state plus the last primary headers it observed.
+Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets. If GitHub is unreachable, ctxpeek detects that automatically, pauses GitHub checks briefly, and falls back to the last primary headers it observed. Use `rate_limits({ details: true })` when you need local throttler internals.
 
 ## "Library not found" from `resolve_repo`
 

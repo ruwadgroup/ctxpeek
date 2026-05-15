@@ -26,6 +26,7 @@ export type ResolutionCandidate = {
   readonly forge: Forge;
   readonly owner: string;
   readonly repo: string;
+  readonly ref?: string;
   readonly subpath?: string;
   readonly source: "cache" | Ecosystem | "github-search" | "literal";
   readonly stars?: number;
@@ -151,6 +152,7 @@ async function verifyLiteral(ctx: ResolverContext, spec: LiteralSpec): Promise<R
       forge: spec.forge,
       owner: meta.owner,
       repo: meta.repo,
+      ...(spec.ref !== undefined ? { ref: spec.ref } : {}),
       ...(spec.subpath !== undefined ? { subpath: spec.subpath } : {}),
       source: "literal",
       stars: meta.stars,
@@ -298,11 +300,12 @@ type LiteralSpec = {
   readonly forge: Forge;
   readonly owner: string;
   readonly repo: string;
+  readonly ref?: string;
   readonly subpath?: string;
 };
 
 const LITERAL_RE =
-  /^(?:(github|gh|gitlab|gl|bitbucket|bb):)?([A-Za-z0-9][\w.-]*)\/([A-Za-z0-9][\w.-]*)(?:#(.+))?$/;
+  /^(?:(github|gh|gitlab|gl|bitbucket|bb):)?([A-Za-z0-9][\w.-]*)\/([A-Za-z0-9][\w.-]*)(?:@([^#\s]+))?(?:#(.+))?$/;
 
 const FORGE_ALIASES = {
   github: "github",
@@ -321,7 +324,8 @@ function parseLiteralSpec(q: string): LiteralSpec | null {
     forge,
     owner: m[2],
     repo: m[3],
-    ...(m[4] ? { subpath: m[4].replace(/^\/+/, "").replace(/\/+$/, "") } : {}),
+    ...(m[4] ? { ref: m[4] } : {}),
+    ...(m[5] ? { subpath: m[5].replace(/^\/+/, "").replace(/\/+$/, "") } : {}),
   };
 }
 

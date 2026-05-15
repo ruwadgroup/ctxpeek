@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Ecosystem } from "../config.js";
+import type { CtxpeekConfig, Ecosystem, PackageMapping } from "../config.js";
 import {
   type DetectedManifest,
   detectProjectManifests,
@@ -16,6 +16,12 @@ export type ProjectManifestMatch = {
   readonly repoSpec?: string;
 };
 
+export type ConfiguredPackageMatch = {
+  readonly depName: string;
+  readonly ecosystem: Ecosystem | undefined;
+  readonly repoSpec: string;
+};
+
 type PackageJson = {
   readonly name?: string;
   readonly repository?: { readonly url?: string; readonly directory?: string } | string;
@@ -25,6 +31,31 @@ type PackageJson = {
 type WorkspacePackagesObject = { readonly packages?: ReadonlyArray<string> };
 
 const MAX_WORKSPACE_PACKAGES = 250;
+
+export function findConfiguredPackageMapping(
+  config: CtxpeekConfig,
+  query: string,
+  ecosystem?: Ecosystem,
+): ConfiguredPackageMatch | null {
+  const normQuery = normaliseDepName(query);
+  const eligible = config.resolve.packageMappings.filter(
+    (mapping) => !ecosystem || !mapping.ecosystem || mapping.ecosystem === ecosystem,
+  );
+  const exact = eligible.find((mapping) => normaliseDepName(mapping.name) === normQuery);
+  const scoped = [...eligible]
+    .filter((mapping) => {
+      const scope = scopeOf(mapping.name);
+      return scope && normaliseDepName(scope) === normQuery;
+    })
+    .sort(comparePackageMappings)[0];
+  const match = exact ?? scoped;
+  if (!match) return null;
+  return {
+    depName: match.name,
+    ecosystem: match.ecosystem,
+    repoSpec: match.spec,
+  };
+}
 
 export async function findProjectManifestMatch(query: string): Promise<ProjectManifestMatch | null> {
   const manifests = await detectProjectManifests(process.cwd());
@@ -257,4 +288,8 @@ function cleanSubpath(s: string | undefined): string {
 
 function isPackageJson(filePath: string): boolean {
   return path.basename(filePath) === "package.json";
+}
+
+function comparePackageMappings(a: PackageMapping, b: PackageMapping): number {
+  return a.name.localeCompare(b.name);
 }

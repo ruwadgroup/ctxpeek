@@ -36,13 +36,13 @@ export function buildFetchDocTool(ctx: ToolContext) {
 
     if (input.head_bytes !== undefined) {
       const sliced = text.slice(0, input.head_bytes);
-      return renderBody(resolved, input.path, sliced, size, result.source, true);
+      return renderBody(resolved, input.path, sliced, size, true);
     }
     if (input.lines) {
       const [start, end] = input.lines;
       const lines = text.split(/\r?\n/);
       const slice = lines.slice(start, Math.min(lines.length, end)).join("\n");
-      return renderBody(resolved, input.path, slice, size, result.source, true);
+      return renderBody(resolved, input.path, slice, size, true);
     }
 
     if (size > LARGE_FILE_THRESHOLD) {
@@ -54,8 +54,6 @@ export function buildFetchDocTool(ctx: ToolContext) {
           commit: resolved.snapshot.commitSha.slice(0, 7),
           path: input.path,
           size,
-          source: result.source,
-          tokensApprox: approxTokens(text),
         }),
         "",
         `> ⚠️ Large file (${size} bytes / ~${approxTokens(text)} tokens). Returning the first 4 KB.`,
@@ -65,7 +63,7 @@ export function buildFetchDocTool(ctx: ToolContext) {
       ].join("\n");
     }
 
-    return renderBody(resolved, input.path, text, size, result.source, false);
+    return renderBody(resolved, input.path, text, size, false);
   };
 }
 
@@ -78,7 +76,6 @@ function renderBody(
   path: string,
   body: string,
   fullSize: number,
-  source: "cache" | "rest" | "cdn" | "graphql",
   partial: boolean,
 ): string {
   const fm = renderFrontmatter({
@@ -87,8 +84,6 @@ function renderBody(
     commit: resolved.snapshot.commitSha.slice(0, 7),
     path,
     size: fullSize,
-    source,
-    tokensApprox: approxTokens(body),
   });
   const note = partial
     ? "\n> Returning a partial slice; call without `lines`/`head_bytes` for the full file.\n"

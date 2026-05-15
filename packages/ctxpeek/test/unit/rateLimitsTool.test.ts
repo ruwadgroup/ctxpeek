@@ -16,7 +16,7 @@ function makeContext(limiter: RateLimiter, fetch: ToolContext["http"]["fetch"]):
 }
 
 describe("rate_limits tool", () => {
-  it("checks GitHub automatically without repeating primary headers locally", async () => {
+  it("checks GitHub automatically and keeps local throttler details opt-in", async () => {
     const limiter = new RateLimiter();
     const reset = Math.floor(Date.now() / 1000) + 3600;
     const ctx = makeContext(limiter, async () => ({
@@ -40,12 +40,16 @@ describe("rate_limits tool", () => {
 
     expect(out).toContain("## GitHub API");
     expect(out).toContain("core: 4212/5000 remaining");
-    expect(out).toContain("## Local throttler");
-    expect(out).toContain("Mode:                normal");
+    expect(out).not.toContain("## Local throttler");
     expect(out).not.toContain("Last GitHub primary");
+
+    const detailed = await buildRateLimitsTool(ctx)({ details: true });
+
+    expect(detailed).toContain("## Local throttler");
+    expect(detailed).toContain("Mode:                normal");
   });
 
-  it("falls back to cached primary headers when GitHub is unreachable", async () => {
+  it("falls back to cached primary headers without local token-bucket noise", async () => {
     const limiter = new RateLimiter();
     const reset = Math.floor(Date.now() / 1000) + 3600;
     limiter.observe({
@@ -66,7 +70,9 @@ describe("rate_limits tool", () => {
     expect(first).toContain("GitHub check unavailable: Error: network blocked.");
     expect(first).toContain("Next retry:");
     expect(first).toContain("Last GitHub primary: 42");
+    expect(first).not.toContain("Secondary budget");
     expect(second).toContain("GitHub check delayed after the previous failure.");
     expect(second).toContain("Last GitHub primary: 42");
+    expect(second).not.toContain("Secondary budget");
   });
 });

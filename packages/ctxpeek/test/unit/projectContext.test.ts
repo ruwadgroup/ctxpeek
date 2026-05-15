@@ -2,7 +2,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { findProjectManifestMatch } from "../../src/tools/projectContext.js";
+import type { CtxpeekConfig } from "../../src/config.js";
+import { findConfiguredPackageMapping, findProjectManifestMatch } from "../../src/tools/projectContext.js";
 
 const originalCwd = process.cwd();
 
@@ -39,6 +40,53 @@ describe("findProjectManifestMatch", () => {
       ecosystem: "npm",
       manifestFile: path.join(packageDir, "package.json"),
       repoSpec: "acme/platform#packages/core",
+    });
+  });
+});
+
+describe("findConfiguredPackageMapping", () => {
+  it("matches exact package mappings before public resolver work", () => {
+    const config = {
+      resolve: {
+        packageMappings: [
+          {
+            name: "@acme/ui",
+            spec: "acme/app#packages/ui",
+            ecosystem: "npm",
+          },
+        ],
+      },
+    } as unknown as CtxpeekConfig;
+
+    expect(findConfiguredPackageMapping(config, "@acme/ui")).toEqual({
+      depName: "@acme/ui",
+      ecosystem: "npm",
+      repoSpec: "acme/app#packages/ui",
+    });
+  });
+
+  it("can use a scope query when the project maps scoped packages", () => {
+    const config = {
+      resolve: {
+        packageMappings: [
+          {
+            name: "@acme/auth",
+            spec: "acme/auth",
+            ecosystem: "npm",
+          },
+          {
+            name: "@acme/ui",
+            spec: "acme/app#packages/ui",
+            ecosystem: "npm",
+          },
+        ],
+      },
+    } as unknown as CtxpeekConfig;
+
+    expect(findConfiguredPackageMapping(config, "acme")).toEqual({
+      depName: "@acme/auth",
+      ecosystem: "npm",
+      repoSpec: "acme/auth",
     });
   });
 });

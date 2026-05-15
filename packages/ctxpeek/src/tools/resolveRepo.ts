@@ -3,7 +3,11 @@ import { z } from "zod";
 import type { Ecosystem } from "../config.js";
 import { type ResolutionCandidate, resolve } from "../resolve/orchestrator.js";
 import type { ToolContext } from "./context.js";
-import { findProjectManifestMatch, offerProjectInstall } from "./projectContext.js";
+import {
+  findConfiguredPackageMapping,
+  findProjectManifestMatch,
+  offerProjectInstall,
+} from "./projectContext.js";
 
 export const resolveRepoInput = z.object({
   query: z.string().min(1),
@@ -41,17 +45,18 @@ export function buildResolveRepoTool(ctx: ToolContext) {
   return async (input: ResolveRepoInput): Promise<ResolveRepoOutput> => {
     const defaultEcosystems = input.ecosystem ? [input.ecosystem] : ctx.config.resolve.ecosystems;
 
-    // Manifest-aware preflight: if the user is in a project that depends on
-    // a package whose name (or scope) matches the query, use the exact
-    // package name as the resolver input. This is the difference between
-    // "autotranslate" → `eJayYoung/autoTranslate` (random npm package) and
-    // "autotranslate" → `tamimbinhakim/autotranslate` (the one the user
-    // actually imports as `@autotranslate/*`).
-    const manifestHit = input.ecosystem
-      ? null
-      : await findProjectManifestMatch(input.query).catch(() => null);
-    const resolveQuery = manifestHit?.repoSpec ?? manifestHit?.depName ?? input.query;
-    const resolveEcosystems = manifestHit ? [manifestHit.ecosystem] : defaultEcosystems;
+    // Project-aware preflight: explicit package mappings win first, then
+    // local manifests/workspaces can steer the resolver to the package the
+    // user actually imports instead of a same-named public package.
+    const configHit = findConfiguredPackageMapping(ctx.config, input.query, input.ecosystem);
+    const manifestHit =
+      input.ecosystem || configHit ? null : await findProjectManifestMatch(input.query).catch(() => null);
+    const resolveQuery = configHit?.repoSpec ?? manifestHit?.repoSpec ?? manifestHit?.depName ?? input.query;
+    const resolveEcosystems = configHit?.ecosystem
+      ? [configHit.ecosystem]
+      : manifestHit
+        ? [manifestHit.ecosystem]
+        : defaultEcosystems;
 
     const raw = await resolve(
       { rest: ctx.rest, forges: ctx.forges, graphql: ctx.graphql, http: ctx.http, logger: ctx.logger },
@@ -92,9 +97,11 @@ export function buildResolveRepoTool(ctx: ToolContext) {
     }
 
     const installSuggestionLine = await offerToInstall(input.query, result.best);
-    const manifestNote = manifestHit
-      ? `> Matched **${manifestHit.depName}** from your ${path.basename(manifestHit.manifestFile)} (scope/name alias of "${input.query}").`
-      : null;
+    const matchNote = configHit
+      ? `> Matched **${configHit.depName}** from ctxpeek package mappings before local manifests and public registries.`
+      : manifestHit
+        ? `> Matched **${manifestHit.depName}** from your ${path.basename(manifestHit.manifestFile)} (scope/name alias of "${input.query}").`
+        : null;
 
     if (result.ambiguous) {
       return {
@@ -103,7 +110,7 @@ export function buildResolveRepoTool(ctx: ToolContext) {
           result.best,
           result.alternatives,
           installSuggestionLine,
-          manifestNote,
+          matchNote,
         ),
         structured: candidateToStructured(result.best, result.alternatives),
       };
@@ -116,7 +123,7 @@ export function buildResolveRepoTool(ctx: ToolContext) {
         result.alternatives,
         result.fromCache,
         installSuggestionLine,
-        manifestNote,
+        matchNote,
       ),
       structured: candidateToStructured(result.best, result.alternatives),
     };
@@ -171,7 +178,7 @@ function renderResolved(
   // Hint the planner: prefer the latest tag when the user asked about a
   // specific version, so it doesn't waste a round-trip on the default branch
   // first then re-resolve to a tag.
-  const useSpec = repoSpec(best, best.latestTag);
+  const useSpec = repoSpec(best, best.ref ?? best.latestTag);
   lines.push(`Use: \`list_docs("${useSpec}")\`, then \`fetch_doc("${useSpec}", "<path>")\``);
   if (installSuggestionLine) {
     lines.push("");
@@ -251,7 +258,8 @@ function sourceLabel(s: ResolutionCandidate["source"]): string {
 function repoSpec(c: ResolutionCandidate, ref?: string | null): string {
   const slug = `${c.owner}/${c.repo}`;
   const prefix = c.forge === "github" ? "" : `${c.forge}:`;
-  const refPart = ref ? `@${ref}` : "";
+  const resolvedRef = ref ?? c.ref;
+  const refPart = resolvedRef ? `@${resolvedRef}` : "";
   const subpath = c.subpath ? `#${c.subpath}` : "";
   return `${prefix}${slug}${refPart}${subpath}`;
 }

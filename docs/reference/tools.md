@@ -10,7 +10,7 @@ Input schemas use `zod` via `@modelcontextprotocol/sdk`. Tool descriptions are w
 
 ## `resolve_repo(query, opts?)`
 
-Turn a fuzzy library name into a canonical `owner/repo`. **Manifest-aware**: if the cwd has a `package.json` / `pyproject.toml` / etc. with a dep matching the query (by name or scope), the resolver prefers that exact package. So `"autotranslate"` from a project depending on `@autotranslate/*` lands on the right repo, not a same-named toy package elsewhere. Suggests an install command when the dep is missing from your lockfile.
+Turn a fuzzy library name into a canonical `owner/repo`. **Project-aware**: configured `[[package]]` mappings are checked first, then cwd manifests (`package.json` / `pyproject.toml` / etc.) by name or scope. So `"autotranslate"` from a project depending on `@autotranslate/*` lands on the right repo, not a same-named toy package elsewhere. Suggests an install command when the dep is missing from your lockfile.
 
 **Input**
 
@@ -78,8 +78,7 @@ docs/
 │   └── …
 └── …
 
-Legend: ✦ high-signal (root README, llms files, index, quickstart),
-        ⚠️ changed within last 7d (or since `since`).
+Symbols: ✦ high-signal, ⚠️ recent.
 ```
 
 ---
@@ -108,8 +107,6 @@ ref: v15.0.0
 commit: a3b1f7c
 path: docs/01-app/02-routing.mdx
 size: 8923
-source: cdn
-~tokens: 2150
 ---
 
 # Routing
@@ -117,7 +114,7 @@ source: cdn
 App Router uses file-system based routing…
 ```
 
-Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus instructions for the partial-read flags.
+Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus an approximate token count and instructions for the partial-read flags.
 
 ---
 
@@ -221,14 +218,16 @@ Pass `{ repo: "owner/repo" }` for a per-repo ref breakdown.
 
 ---
 
-## `rate_limits()`
+## `rate_limits(opts?)`
 
-Show GitHub's `/rate_limit` view and local throttler accounting. If GitHub is unreachable, ctxpeek falls back to local state and briefly delays follow-up GitHub checks.
+Show GitHub's `/rate_limit` view. If GitHub is unreachable, ctxpeek falls back to local primary-rate state and briefly delays follow-up GitHub checks. Pass `details: true` to include local throttler internals.
 
 **Input**
 
 ```ts
-{}
+{
+  details?: boolean             // default false; include local throttler internals
+}
 ```
 
 **Output**
@@ -241,7 +240,11 @@ Show GitHub's `/rate_limit` view and local throttler accounting. If GitHub is un
 core: 4212/5000 remaining, used 788, reset 2026-05-15T07:00:00.000Z
 search: 30/30 remaining, used 0, reset 2026-05-15T06:06:00.000Z
 graphql: 4995/5000 remaining, used 5, reset 2026-05-15T07:00:00.000Z
+```
 
+With `{ details: true }`:
+
+```markdown
 ## Local throttler
 
 Mode:                normal
@@ -250,4 +253,4 @@ Secondary budget:    60/min (59.8/60 tokens available)
 Concurrency:         8 max
 ```
 
-When GitHub cannot be reached, the GitHub section reports the failure and the local section also includes the last primary headers ctxpeek observed.
+When GitHub cannot be reached, the default output reports the failure plus the last primary headers ctxpeek observed.

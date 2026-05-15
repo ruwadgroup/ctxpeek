@@ -110,7 +110,13 @@ export async function fetchBlob(
       await ctx.blobs.write(cacheSha, bytes);
       return { bytes, etag: undefined, source: "cdn" };
     } catch (err) {
-      if (err instanceof NotFoundError) throw err;
+      if (err instanceof NotFoundError) {
+        ctx.logger.debug("fetch: CDN 404, falling back to forge API", {
+          path: filePath,
+          forge,
+        });
+        return null;
+      }
       if (err instanceof CdnUnavailableError) {
         ctx.logger.warn("fetch: CDN unavailable", {
           path: filePath,

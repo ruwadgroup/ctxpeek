@@ -2,7 +2,9 @@ import { z } from "zod";
 import type { RateLimitSnapshot } from "../fetch/ratelimit.js";
 import type { ToolContext } from "./context.js";
 
-export const rateLimitsInput = z.object({});
+export const rateLimitsInput = z.object({
+  details: z.boolean().optional(),
+});
 
 export type RateLimitsInput = z.infer<typeof rateLimitsInput>;
 
@@ -27,7 +29,7 @@ type GithubCheckResult =
 export function buildRateLimitsTool(ctx: ToolContext) {
   let githubFailureRetryAt = 0;
 
-  return async (_input: RateLimitsInput): Promise<string> => {
+  return async (input: RateLimitsInput): Promise<string> => {
     const lines: string[] = [];
     lines.push("# Rate limits");
     lines.push("");
@@ -43,11 +45,29 @@ export function buildRateLimitsTool(ctx: ToolContext) {
 
     lines.push(...github.lines);
     if (nextRetry) lines.push(`Next retry: ${nextRetry.toISOString()}.`);
-    lines.push("");
-    lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: !github.ok }));
+    const snapshot = ctx.limiter.snapshot();
+    if (input.details) {
+      lines.push("");
+      lines.push(...renderLocalSnapshot(snapshot, { includePrimary: !github.ok }));
+    } else if (!github.ok) {
+      lines.push("");
+      lines.push(...renderLocalFallback(snapshot));
+    }
 
     return lines.join("\n");
   };
+}
+
+function renderLocalFallback(snapshot: RateLimitSnapshot): string[] {
+  const reset = snapshot.resetAt ? snapshot.resetAt.toISOString() : "unknown";
+  const observed = snapshot.observedAt ? snapshot.observedAt.toISOString() : "never";
+  return [
+    "## Local fallback",
+    "",
+    `Last GitHub primary: ${snapshot.remaining ?? "unknown"}`,
+    `Observed at:         ${observed}`,
+    `Primary reset:       ${reset}`,
+  ];
 }
 
 function renderLocalSnapshot(

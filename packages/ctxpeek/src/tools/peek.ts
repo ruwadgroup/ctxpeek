@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { fetchBlob } from "../fetch/strategy.js";
-import { approxTokens, renderFrontmatter } from "../format/frontmatter.js";
+import { renderFrontmatter } from "../format/frontmatter.js";
 import { fetchContextFrom, resolveSnapshot, type ToolContext } from "./context.js";
 
 export const peekInput = z.object({
@@ -36,8 +36,6 @@ export function buildPeekTool(ctx: ToolContext) {
       commit: resolved.snapshot.commitSha.slice(0, 7),
       path: input.path,
       size: result.bytes.byteLength,
-      source: result.source,
-      tokensApprox: approxTokens(head),
     });
     return [
       `# Peek: ${resolved.owner}/${resolved.repo}@${resolved.snapshot.requestedRef}:${input.path} (first ${input.n} of ${lines.length} lines / ${result.bytes.byteLength} bytes total)`,

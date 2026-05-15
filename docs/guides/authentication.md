@@ -44,6 +44,21 @@ For JSON-based stdio MCP clients:
 
 A classic PAT with the `public_repo` scope works equivalently for public repos. If you need private GitHub repos, the token must have access to those repositories and their contents.
 
+## Private repos and internal packages
+
+Private repo access should change resolution priority, not the public CDN posture. Public repos still use cache → CDN → REST/ETag. For private repos, a CDN miss falls through to the authenticated forge API.
+
+For internal packages, prefer a project `.ctxpeek.toml` package mapping:
+
+```toml
+[[package]]
+name = "@acme/ui"
+spec = "acme/web@main#packages/ui"
+ecosystem = "npm"
+```
+
+This lets `resolve_repo("@acme/ui")` resolve to the internal repo before public package registries or public GitHub search. Store env var names and repo specs in config; keep token values in your shell, MCP client env, or credential helper.
+
 ### Why authed 304s matter
 
 Unauthenticated `If-None-Match` requests still count against the 60/hr anonymous bucket. Authenticated 304s do not. ctxpeek prefers local cache and CDN reads where possible, and uses conditional REST requests when it falls back to GitHub's contents API.

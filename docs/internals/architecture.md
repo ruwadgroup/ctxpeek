@@ -60,6 +60,11 @@ function resolve_repo(query, hint?):
   q = normalize(query)
   if q is "[forge:]owner/repo[#path]":  return verify_on_forge(q)
 
+  # Config preflight: project/global [[package]] mappings are explicit user
+  # intent and win before any public registry or search work.
+  config_hit = find_package_mapping(q)
+  if config_hit.repo_spec:              return verify_on_forge(config_hit.repo_spec)
+
   # Project preflight: inspect cwd + ancestor manifests and npm workspaces.
   # If the query matches a dep, local package, or workspace package, resolve
   # that exact package or inherited repo#subpath instead of the bare query.

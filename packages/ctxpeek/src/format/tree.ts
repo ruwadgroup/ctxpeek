@@ -68,17 +68,24 @@ export function renderTree(entries: ReadonlyArray<TreeEntry>, opts: TreeOptions)
   }
 
   renderChildren(root, "", lines);
-  lines.push("");
-  lines.push("Legend: ✦ high-signal (root README, llms files, index, quickstart), ⚠️ changed within last 7d.");
+  const symbols = symbolLegend(entries);
+  if (symbols) {
+    lines.push("");
+    lines.push(symbols);
+  }
   if (opts.notes && opts.notes.length > 0) {
     lines.push("");
     for (const n of opts.notes) lines.push(`> ${n}`);
   }
-  lines.push("");
-  lines.push(
-    `Use: \`fetch_doc("${opts.repoLabel}${opts.resolvedRef ? `@${opts.resolvedRef}` : ""}", "<path>")\``,
-  );
   return lines.join("\n");
+}
+
+function symbolLegend(entries: ReadonlyArray<TreeEntry>): string {
+  const parts: string[] = [];
+  if (entries.some((e) => e.highSignal)) parts.push("✦ high-signal");
+  if (entries.some((e) => e.highlightedInNav)) parts.push("✦✦ nav-highlighted");
+  if (entries.some((e) => e.recentlyChanged)) parts.push("⚠️ recent");
+  return parts.length > 0 ? `Symbols: ${parts.join(", ")}.` : "";
 }
 
 function renderChildren(node: Node, prefix: string, lines: string[]): void {
