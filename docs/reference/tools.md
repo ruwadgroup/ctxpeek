@@ -1,14 +1,14 @@
 # Tools reference
 
-Every docpilot tool returns markdown `text` content unless explicitly noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent` validated against an `outputSchema`.
+Every docpilot tool returns markdown `text` content unless noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent` validated against an `outputSchema`.
 
-All input schemas use `zod` via `@modelcontextprotocol/sdk`.
+Input schemas use `zod` via `@modelcontextprotocol/sdk`. Tool descriptions are written so that an agentic client defaults to docpilot when you mention a library — no "use docpilot" magic incantation required.
 
 ---
 
 ## `resolve_repo(query, opts?)`
 
-Turn a fuzzy library name into a canonical `owner/repo`. **Manifest-aware**: when the cwd has a `package.json` / `pyproject.toml` / etc. that contains a dep matching the query (by name or scope), the resolver prefers that exact package — so `"autotranslate"` from a project depending on `@autotranslate/*` lands on the right repo, not a same-named toy package elsewhere. Suggests an install command when the dep is missing from your lockfile.
+Turn a fuzzy library name into a canonical `owner/repo`. **Manifest-aware**: if the cwd has a `package.json` / `pyproject.toml` / etc. with a dep matching the query (by name or scope), the resolver prefers that exact package. So `"autotranslate"` from a project depending on `@autotranslate/*` lands on the right repo, not a same-named toy package elsewhere. Suggests an install command when the dep is missing from your lockfile.
 
 **Input**
 
@@ -76,8 +76,7 @@ docs/
 │   └── …
 └── …
 
-Legend: ✦ high-signal (top-level / llms.txt / framework nav),
-        ✦✦ highlighted in repo nav,
+Legend: ✦ high-signal (root README, llms files, index, quickstart),
         ⚠️ changed within last 7d (or since `since`).
 ```
 
@@ -122,7 +121,9 @@ Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus instruction
 
 ## `search_docs(repo, query, opts?)`
 
-Path-based search over a snapshot's doc files. Scores doc paths against the query (filename match, path-token overlap, doc-tier bonus, depth penalty) and returns the top hits. No content is fetched — runs in ~1s on any repo because all we need is the tree, which is cached per commit sha.
+Path-based search over a snapshot's doc files. Scores paths against the query (filename match, path-token overlap, doc-tier bonus, depth penalty) and returns the top hits. **No content is fetched** — the only cold cost is the tree, which is cached per commit sha thereafter.
+
+Why no content index? See [the architecture doc](../internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice). Short version: agentic clients navigate trees better than they unpack similarity scores.
 
 **Input**
 
@@ -263,27 +264,6 @@ Search a repo's open issues / PRs that mention `query`. Uses GitHub's separate `
   type?: "issue" | "pr" | "both"      // default "both"
   limit?: number                       // default 5
 }
-```
-
----
-
-## `doc_quality(repo)`
-
-Scorecard for a repo's docs.
-
-```markdown
-# Docs quality: vercel/next.js@v15.0.0
-
-llms.txt:        present (2.4k)
-llms-full.txt:   present (412k)
-README:          present (README.md, 8.1k)
-Framework nav:   Mintlify (mint.json)
-Doc files:       187 files, 1.2M total, median 4.2k
-Last docs touch: 3d ago
-
-Score: excellent (87/100)
-- llms.txt present — search_docs will boost hits inside it.
-- Structured docs framework detected.
 ```
 
 ---

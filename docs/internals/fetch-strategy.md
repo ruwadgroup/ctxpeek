@@ -1,6 +1,6 @@
 # Fetch strategy
 
-This is the prescriptive part of the design — what makes docpilot pleasant or painful at scale.
+The prescriptive part of the design. The difference between docpilot feeling pleasant or painful at scale comes down to the order in this chain.
 
 ## Numbers that drive the design
 

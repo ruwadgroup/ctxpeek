@@ -1,6 +1,6 @@
 # Architecture
 
-This is what happens when an MCP client invokes a docpilot tool. The parts are small enough to read in one sitting.
+What happens when an MCP client invokes a docpilot tool, layer by layer. The whole thing is small enough to read in one sitting.
 
 ## The 30-second mental model
 
@@ -35,20 +35,21 @@ This is what happens when an MCP client invokes a docpilot tool. The parts are s
 
 - **All state is on disk**, under `env-paths('docpilot').cache`. No daemon, no port.
 - **Blobs are content-addressed** by sha256 of bytes. Re-fetches that 304 are free.
-- **A repo is a "snapshot"**: `(owner, repo, commit-sha)`. Refs (`main`, `v15`, `latest`) resolve to a sha at the start of each tool call; downstream operations operate on the sha.
-- **Search is tree-only.** No content index — `search_docs` scores doc paths against the query and returns hits. The tree is cached per commit sha; the score function is O(N) over doc paths.
+- **A repo is a "snapshot"**: `(forge, owner, repo, commit-sha)`. Refs (`main`, `v15`, `latest`) resolve to a sha at the start of each tool call; downstream operations operate on the sha.
+- **Search is tree-only.** No content index — `search_docs` scores doc paths against the query and returns hits. The tree is cached per commit sha.
+- **Multi-forge from the start.** GitHub, GitLab, Bitbucket all ship in v0.1; new forges are one file via `defineForge`.
 
 ## Layer by layer
 
 ### 1. MCP transport (`src/server.ts`)
 
-A single Node process speaking JSON-RPC over stdio. The server registers each tool from `src/tools/*` with the MCP SDK, plus a small set of `notifications/progress` for long operations. No SSE, no HTTP, no shared state across server instances.
+A single Node process speaking JSON-RPC over stdio. Each tool from `src/tools/*` registers with the MCP SDK, plus `notifications/progress` for long operations. No SSE, no HTTP, no shared state across server instances.
 
 ### 2. Tools layer (`src/tools/`)
 
 Each tool is a thin orchestrator: validate input with zod, call into the right combination of resolver / cache / fetch / index, render the result as markdown, return.
 
-Tool descriptions are written so that the model **defaults** to calling docpilot when the user mentions a library — no incantation required.
+Tool descriptions are written so the model **defaults** to calling docpilot when the user mentions a library. No magic incantation.
 
 ### 3. Resolver (`src/resolve/`) <a id="resolver"></a>
 
@@ -94,7 +95,7 @@ function resolve_repo(query, hint?):
   else:                                 confidence = 0.55  # ambiguous, markdown picker
 ```
 
-Cache schema is versioned and stores the verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`). A schema bump auto-invalidates older entries on read. The 30-day TTL applies per entry; releases that ship inside that window stale `latestTag` until `force_refresh` or the entry expires.
+Cache schema is versioned and stores the verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`). A schema bump auto-invalidates older entries on read. The 30-day TTL applies per entry; releases shipped inside that window stale `latestTag` until `force_refresh` or the entry expires.
 
 ### 4. Fetch strategy (`src/fetch/`)
 
@@ -162,19 +163,35 @@ Markdown renderers — tree, search hits, frontmatter. The MCP spec says `text` 
 
 A few decisions worth calling out:
 
-**Why an IR-free design?** Tools render markdown directly. Adding an IR layer would add abstraction without enabling polyglot clients (the MCP transport already isolates us). When we need structured output for chaining (e.g., `resolve_repo`'s `structuredContent`), it lives next to the markdown, validated by the same zod schema.
+### Why an IR-free design?
 
-**Why no semantic search or vector store? A deliberate choice.**
+Tools render markdown directly. Adding an IR layer would add abstraction without enabling polyglot clients (the MCP transport already isolates us). When we need structured output for chaining (`resolve_repo`'s `structuredContent`), it lives next to the markdown, validated by the same zod schema.
 
-When models weren't agentic, query → top-k was the right shape: hand the model a relevance-ranked slice because it couldn't go fetch more itself. A vector store solved that — map the corpus into similarity space, return the nearest chunks to the user's question, hope a few of them were on-topic.
+### Why no semantic search or vector store? A deliberate choice.
 
-Today's clients are agentic. They list a tree, read a path, decide whether it's what they wanted, and call again. The right primitive for _that_ shape isn't "guess what the answer looks like and dump six chunks" — it's "show me the structure of these docs and let me navigate it." If a repo was written for a human to navigate (filenames, folder hierarchy, llms.txt, README headings), it's already navigable by an agent. The corpus author has _already_ encoded relevance — embeddings just re-derive a lossier version of it.
+When models weren't agentic, query → top-k was the right shape. Hand the model a relevance-ranked slice because it couldn't go fetch more itself. A vector store solved that — map the corpus into similarity space, return the nearest chunks to the user's question, hope a few of them were on-topic.
+
+Today's clients are agentic. They list a tree, read a path, decide whether it's what they wanted, and call again. The right primitive for _that_ shape isn't "guess what the answer looks like and dump six chunks" — it's "show me the structure of these docs and let me navigate." If a repo was written for a human to navigate (filenames, folder hierarchy, llms.txt, README headings), it's already navigable by an agent. The corpus author has _already_ encoded relevance — embeddings just re-derive a lossier version of it.
 
 So docpilot leans on what's already there. `search_docs` scores paths. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
 
-**Why CDN as a first-class fallback?** Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous docpilot users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
+### Why CDN as a first-class fallback?
 
-**Why no SaaS?** If we run a server, we become Context7. The whole pitch is "no third party can author content delivered through docpilot." A hosted endpoint breaks that.
+Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous docpilot users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
+
+### Why no hosted docs corpus?
+
+The boundary is not "never use a server for anything." A cache mirror or CDN can be compatible if it serves immutable public bytes and the client still verifies what it receives.
+
+The boundary is: docpilot does not make a hosted corpus, resolver, ranking model, or authoring layer the authority for documentation. The authority is the git snapshot named by `[forge:]owner/repo[@ref][#subpath]`. If a hosted service decides which library, version, snippets, or instructions the model sees, docpilot has stopped being ref-native source access and has become a different product.
+
+### Non-goals (so the surface stays small)
+
+- **No vector store, no embeddings, no semantic search.** See above.
+- **No hosted docs corpus or hosted resolver as the authority.** See above.
+- **No curated library registry.** If a library has a public repo on a supported forge, docpilot can read it. We're never building a "trusted libraries" list.
+- **No write operations.** No `create_issue`, no `commit`, no `pr`. Adjacent to scope.
+- **No source-code understanding.** docpilot is for documentation. Symbol-level navigation is `github-mcp-server`'s job.
 
 ## Plug-in registries
 
@@ -191,7 +208,7 @@ Each helper writes to a module-local `Map<string, Definition>`. Built-ins side-r
 ## Where to read the code
 
 - [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts) — MCP entrypoint + CLI dispatch
-- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/) — 12 tools, one file each
+- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/) — MCP tool implementations
 - [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts) — REST + CDN + GraphQL fallback chain
 - [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/) — GitHub / GitLab / Bitbucket adapters
 - [`packages/docpilot/src/resolve/orchestrator.ts`](../../packages/docpilot/src/resolve/orchestrator.ts)

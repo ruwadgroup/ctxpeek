@@ -1,8 +1,8 @@
 # Extending docpilot
 
-docpilot ships three plug-in registries. Each one lets you add support for a new git forge, a new language's lockfile, or a new package-manager registry — by writing **one file**.
+docpilot ships three plug-in registries. Adding a new git forge, a new language's lockfile, or a new package-manager registry is **one file**.
 
-The pattern is the same everywhere: a `define*(config)` factory self-registers with a global registry on module load. Then you add one line to a sibling `index.ts` barrel and the rest of docpilot picks it up automatically.
+The pattern is the same everywhere: a `define*(config)` factory self-registers with a global registry on module load. Add one line to the sibling `index.ts` barrel and the rest of docpilot picks it up automatically.
 
 ---
 

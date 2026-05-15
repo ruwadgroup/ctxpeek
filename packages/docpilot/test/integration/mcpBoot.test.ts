@@ -21,7 +21,7 @@ type JsonRpcResponse = {
 };
 
 describe("MCP boot", () => {
-  it("registers all 12 tools and responds to tools/list", async () => {
+  it("registers all 11 tools and responds to tools/list", async () => {
     const child = spawn("node", [SERVER_PATH], {
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -81,12 +81,11 @@ describe("MCP boot", () => {
       send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
       const list = await waitForResponse(2, 10_000);
 
-      expect(list.result?.tools?.length).toBe(12);
+      expect(list.result?.tools?.length).toBe(11);
       const names = (list.result?.tools ?? []).map((t) => t.name).sort();
       expect(names).toEqual([
         "cache_status",
         "changelog",
-        "doc_quality",
         "fetch_doc",
         "get_changes",
         "get_issues",

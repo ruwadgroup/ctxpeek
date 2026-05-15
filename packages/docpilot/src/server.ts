@@ -30,7 +30,6 @@ import { installRecipe, loadRecipe, renderRecipeReport } from "./recipes.js";
 import {
   buildCacheStatusTool,
   buildChangelogTool,
-  buildDocQualityTool,
   buildFetchDocTool,
   buildGetChangesTool,
   buildGetIssuesTool,
@@ -42,7 +41,6 @@ import {
   buildSearchDocsTool,
   cacheStatusInput,
   changelogInput,
-  docQualityInput,
   fetchDocInput,
   getChangesInput,
   getIssuesInput,
@@ -187,12 +185,6 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
     handler: buildGetChangesTool(ctx),
   });
 
-  registerSimpleTool(server, "doc_quality", docQualityInput, {
-    description:
-      "Scorecard for a repo's docs (llms.txt, README, framework nav, freshness). Use before relying on a poorly-documented repo.",
-    handler: buildDocQualityTool(ctx),
-  });
-
   registerSimpleTool(server, "cache_status", cacheStatusInput, {
     description: "On-disk cache state. Pass `{ repo: 'owner/repo' }` for per-repo breakdown.",
     handler: buildCacheStatusTool(ctx),
@@ -222,7 +214,7 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
   const transport = new StdioServerTransport();
   await server.connect(transport);
   ctx.logger.info("docpilot: MCP stdio server ready", {
-    tools: 12,
+    tools: 11,
     version: DOCPILOT_VERSION,
   });
   await waitForServerClose(server);

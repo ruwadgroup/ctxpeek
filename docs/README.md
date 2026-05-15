@@ -1,6 +1,6 @@
 # docpilot docs
 
-End-user and contributor documentation. The top-level [`README.md`](../README.md) is the front door; this directory is the deep reference.
+End-user and contributor docs. The top-level [`README.md`](../README.md) is the front door; this directory is the reference.
 
 ## Map
 
@@ -14,7 +14,7 @@ docs/
 │   ├── extending.md             // Add a forge / lockfile / registry plug-in
 │   └── troubleshooting.md       // Windows, ENOENT, rate limits
 ├── reference/
-│   ├── tools.md                 // All 12 tools' input / output / examples
+│   ├── tools.md                 // Tool input / output / examples
 │   ├── configuration.md         // All keys in .docpilot.toml
 │   ├── repo-spec.md             // [forge:]owner/repo[@ref][#subpath] grammar
 │   └── exit-codes.md            // CLI exit codes

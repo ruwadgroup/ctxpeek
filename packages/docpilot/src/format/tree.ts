@@ -69,9 +69,7 @@ export function renderTree(entries: ReadonlyArray<TreeEntry>, opts: TreeOptions)
 
   renderChildren(root, "", lines);
   lines.push("");
-  lines.push(
-    "Legend: ✦ high-signal (top-level / llms.txt / framework nav), ✦✦ highlighted in repo nav, ⚠️ changed within last 7d.",
-  );
+  lines.push("Legend: ✦ high-signal (root README, llms files, index, quickstart), ⚠️ changed within last 7d.");
   if (opts.notes && opts.notes.length > 0) {
     lines.push("");
     for (const n of opts.notes) lines.push(`> ${n}`);

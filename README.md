@@ -40,7 +40,7 @@
 
 <div align="center">
 
-> **Status:** v0.1 implementation shipped — 12 MCP tools, GitHub + GitLab + Bitbucket forges, a plug-in registry for new forges / lockfiles / registries.
+> **Status:** v0.1 shipped. GitHub + GitLab + Bitbucket. Plug-in slots for new forges, lockfiles, and registries.
 
 </div>
 
@@ -48,50 +48,52 @@
 
 ## What it does
 
-Add docpilot to your MCP client — it runs as a local stdio server:
+docpilot is a local stdio MCP server. Add it to your client, then ask your assistant about any library by `owner/repo`:
 
 ```bash
 npx -y docpilot
 ```
 
-Configure it in any MCP-capable client (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI). Then in chat, you say things like _"show me the routing docs from `vercel/next.js@v15.0.0`"_ — and your model calls docpilot, docpilot fetches the actual file from the actual repo at the actual version, returns it as markdown, and your model gets to work with information it can trust.
+When you say _"show me the routing docs from `vercel/next.js@v15.0.0`"_, your model calls docpilot, docpilot fetches the actual file from the actual repo at that commit, returns it as markdown, and your model works with information it can trust.
 
-It also resolves fuzzy names — `"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex — and can search across your whole project's deps in one call (`search_all`).
+It also resolves fuzzy names (`"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex) and can search across every dep in your lockfile in one call (`search_all`).
+
+Built for agentic clients. The model lists a tree, picks a path, reads the file, decides if it's right, calls again. We don't do top-k chunk dumps and we don't run a vector store — agents navigate structure faster than they unpack similarity scores. More on that in [the architecture doc](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
 
 What you get out of the box:
 
-- **Local-first.** Cache, index, and fetch all run on your machine. No telemetry, no analytics. Your query strings never leave.
-- **Any public repo on GitHub, GitLab, or Bitbucket.** The forge layer is a plug-in registry, so Codeberg / Gitea / sourcehut are one file away.
-- **Version-pinned by default.** `owner/repo@v15.0.0` is the path of least resistance, not a power-user feature you'll forget about.
-- **Free, forever.** Bring your own GitHub PAT — or none. ETag 304s don't count against your rate limit, so a warm cache is effectively unlimited.
+- **Local-first.** Everything — cache, search, fetch — runs on your machine. No telemetry. Your queries don't leave.
+- **Any public repo on GitHub, GitLab, or Bitbucket.** Codeberg / Gitea / sourcehut are one file away — see [extending docpilot](docs/guides/extending.md).
+- **Ref-native by default.** Branch, tag, commit sha, and monorepo subpath are part of the input: `owner/repo@ref#subpath`.
+- **Version-pinned docs without ingestion.** `owner/repo@v15.0.0`, `owner/repo@main`, and `owner/repo@<sha>` all read the matching git snapshot directly.
+- **Free, forever.** Bring your own GitHub PAT — or none. Authenticated `If-None-Match` 304s don't count against your rate limit, so a warm cache is effectively unlimited.
 - **Markdown out, not JSON.** ~75% smaller for the same information. Every response self-reports `~tokens` so the model can budget.
-- **No third-party instruction channel.** The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry, Feb 2026) is structurally absent. docpilot serves file contents only — see [Threat model](#threat-model) for what that does and doesn't buy you.
+- **No third-party instruction channel.** docpilot only serves file contents from repos you name. The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry) is structurally absent — see [Threat model](#threat-model).
 
 <br />
 
 ## Why not Context7
 
-Context7 is the elephant in the room and the reason I felt the need to write this section at all. It's the default people reach for, it's well-marketed, and it solved a real problem — for a while. But the parts that broke for me aren't bugs. They're properties of the architecture. (The personal version of how I hit each of these is in [The story](#the-story) below.)
+Context7 is the obvious comparison, but the core difference is not "hosted vs local" or even privacy. The core difference is the retrieval model.
 
-|                                        | Context7                                                                                                                                                                                                                                                      | docpilot                                                                                                                                                                              |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Prompt-injection surface**           | Custom Rules served verbatim from the registry into the agent's trusted channel — see the [ContextCrush disclosure (Noma Security, Feb 2026)](https://noma.security/). The patch fixed the bug; the registry-as-instruction-channel **architecture remains**. | No third-party authoring layer — that whole class of injection is structurally absent. The content-layer class (a malicious README) still applies; see [Threat model](#threat-model). |
-| **Trust boundary**                     | Upstash registry + third-party-authored Custom Rules.                                                                                                                                                                                                         | Your GitHub PAT. The public CDN. That's it.                                                                                                                                           |
-| **Privacy**                            | Every query is sent to `context7.com`. Your phrasing is a third-party signal.                                                                                                                                                                                 | Your queries never leave your machine. Outbound calls go only to GitHub, jsDelivr, and the public package registries — and the registries only when you call `resolve_repo`.          |
-| **Free-tier capacity**                 | Cut **83–92% in Jan 2026**. Many users hit caps within an afternoon of work.                                                                                                                                                                                  | Free, forever. Your rate limit is your own GitHub PAT (5,000/hr) — and authenticated `If-None-Match` 304s don't count, so a warm cache is effectively unlimited.                      |
-| **Library coverage**                   | Curated registry. If it's not in Context7, you're out of luck.                                                                                                                                                                                                | Any public GitHub repo. If `owner/repo` exists on GitHub, docpilot can serve it — including the libraries _you_ just shipped.                                                         |
-| **Wrong-library hallucination**        | `resolve-library-id` will silently route an unknown name to a "similar" library based on opaque trust scores. Multiple "library not found" and silent-mismatch reports on r/cursor and HN.                                                                    | `resolve_repo` is transparent: npm/PyPI/crates first, GitHub stars last. Returns the candidate list when ambiguous and lets you (or the model) pick.                                  |
-| **Version pinning UX**                 | Possible (`/owner/lib/vX.Y.Z`) but most users don't bother.                                                                                                                                                                                                   | First-class. `owner/repo@ref` _is_ the canonical input format.                                                                                                                        |
-| **Freshness**                          | Periodic re-index. Per their own guide: _"very recent releases — within days — may not be available yet."_                                                                                                                                                    | Your cache. ETag-revalidate-on-read means at most one round-trip stale. Pin `@main` for HEAD; pin `@v1.2.3` for reproducibility.                                                      |
-| **Token bloat**                        | Returns large JSON-flavored payloads. r/cursor users complain it eats the context window.                                                                                                                                                                     | Markdown trees and frontmatter, ~75% smaller than equivalent JSON. Every response includes `~tokens: N` so the model can budget.                                                      |
-| **"Use context7" magic trigger**       | Required for the model to reach for it; otherwise it doesn't fire.                                                                                                                                                                                            | Tool descriptions are written so the model **defaults** to docpilot when you mention a library. No incantation.                                                                       |
-| **Account / API key for higher quota** | Yes. Privacy-conscious users opt out.                                                                                                                                                                                                                         | None. There is no account. There is nothing to log into.                                                                                                                              |
-| **Monorepos**                          | Limited. `/vercel/next.js` returns "Next.js docs," not arbitrary `packages/*/docs/`.                                                                                                                                                                          | First-class `#subpath`: `vercel/next.js@canary#packages/next/src/lib`.                                                                                                                |
-| **Your own libraries during dev**      | Has to be ingested first. New releases lag.                                                                                                                                                                                                                   | Works the second you push to GitHub. Pin `@<sha>` and your model is reading the diff you just shipped.                                                                                |
+Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. docpilot starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, searches paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
 
-Context7's strengths — curation, hosted indexing, smart ranking — are precisely the surface area where it fails in ways docpilot **structurally cannot**. That's the whole pitch.
+|                              | Context7                                                                                          | docpilot                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thinking model**           | Resolve a library ID, ask for a topic, receive curated context from the hosted corpus.            | Resolve a repo/ref, inspect the tree, fetch exact files from the matching git snapshot.                                                 |
+| **Version model**            | Version-specific library IDs are possible when that version exists in the corpus.                 | Branches, tags, and commit shas are the native address space: `owner/repo@main`, `@v15.0.0`, `@<sha>`.                                  |
+| **Fresh dev branches**       | A new library or version has to be submitted, crawled, indexed, or refreshed before it is useful. | Works as soon as the ref exists on the forge. Pin `@<sha>` and the model reads the exact docs you just pushed.                          |
+| **Agent workflow**           | Good for "give me the relevant snippet for this topic."                                           | Good for "show me this project's docs at this version, then let the agent navigate."                                                    |
+| **Monorepos**                | The library ID usually points at a selected docs surface.                                         | `#subpath` is first-class: `vercel/next.js@canary#packages/next/src/lib`.                                                               |
+| **Library coverage**         | Curated registry. If it is not in the corpus, it must be added first.                             | Any public repo on GitHub, GitLab, or Bitbucket. Including your own libraries and unreleased branches.                                  |
+| **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` checks package registries first, GitHub search last, and returns alternatives when ambiguous.                            |
+| **Prompt-injection surface** | A hosted documentation layer can add authoring or policy surface beyond the upstream repo.        | No third-party authoring layer. docpilot serves files from the repo/ref you named. Content-layer bugs, like a malicious README, remain. |
+| **Operational model**        | Hosted service, optional account/API key for higher usage.                                        | Local stdio MCP process. Bring a forge token or use public CDN fallbacks.                                                               |
+| **Privacy**                  | Queries go to the hosted service.                                                                 | Query privacy falls out of the architecture, but it is not the main pitch. The main pitch is ref-addressed source-of-truth docs.        |
 
-> Want the long-form comparison (vs Context7 vs GitMCP vs Ref Tools)? See [`docs/comparison.md`](docs/comparison.md).
+Context7 optimizes for a curated documentation answer. docpilot optimizes for a reproducible documentation snapshot. If your question depends on _which branch, tag, commit, or monorepo package_ the docs came from, docpilot is the better primitive.
+
+> Long-form: [`docs/comparison.md`](docs/comparison.md) (vs Context7, GitMCP, Ref Tools).
 
 <br />
 
@@ -99,9 +101,9 @@ Context7's strengths — curation, hosted indexing, smart ranking — are precis
 
 I built docpilot because I got tired of doing the same dance every day.
 
-I'd been elbows-deep in two of my own libraries — [`tamimbinhakim/imprint-pdf`](https://github.com/tamimbinhakim/imprint-pdf) and [`tamimbinhakim/dyadpy`](https://github.com/tamimbinhakim/dyadpy) — refactoring APIs faster than I could ship them. The repos were the source of truth for what the libraries did. They had to be. I was the one writing the docs.
+I'd been elbows-deep in two of my own libraries — [`tamimbinhakim/imprint-pdf`](https://github.com/tamimbinhakim/imprint-pdf) and [`tamimbinhakim/dyadpy`](https://github.com/tamimbinhakim/dyadpy) — refactoring APIs faster than I could ship them. The repos were the source of truth. They had to be. I was the one writing the docs.
 
-Then I'd open a _different_ project to actually use those libraries — to dogfood them, see if the API I'd just shipped was any good. And the AI in that editor was, predictably, useless about my libraries. Of course it was. Its training data was months old, and even if it weren't, my last refactor was twenty minutes ago. So it would politely hallucinate an API that hadn't existed since last Tuesday, and I'd waste a turn correcting it.
+Then I'd open a _different_ project to actually use those libraries — to dogfood them, see if the API I'd just shipped was any good. The AI in that editor was, predictably, useless about my libraries. Of course it was. Its training data was months old, and even if it weren't, my last refactor was twenty minutes ago. So it would politely hallucinate an API that hadn't existed since last Tuesday, and I'd waste a turn correcting it.
 
 So I'd do the dance:
 
@@ -110,11 +112,11 @@ So I'd do the dance:
 3. Paste it into the chat. Watch a third of my context window evaporate on docs the model would have ignored half of anyway.
 4. Repeat tomorrow because I'd shipped another breaking change at 1 AM.
 
-I tried Context7. It's well-built and the team clearly cares. But its registry doesn't know about my libraries until it crawls them, and by their own admission, _"very recent releases — within days — may not be available yet."_ My library changed thirty minutes ago. I needed _now_, not within-days. And I didn't love that every query phrased the way I phrased it was sailing off to a third-party service so it could decide which "trust-scored" library to feed back to my model.
+I tried Context7. It's well-built and the team clearly cares. But its unit of work is a library in a hosted docs corpus, not a git ref. My problem was ref-shaped: this branch, this tag, this commit, this monorepo package. My library changed thirty minutes ago. I needed the docs at the version I was actually using, not the nearest indexed version.
 
-The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a commit sha for reproducibility, pin to `@main` for HEAD. ETag-revalidate so repeat reads cost zero against your rate limit. Cache locally. No middleman. No registry. No account.
+The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a sha for reproducibility, pin to `@main` for HEAD. ETag-revalidate so repeat reads cost zero. Cache locally. No middleman.
 
-That's docpilot. It's the tool I wanted on my own machine, six months ago.
+That's docpilot. The tool I wanted on my own machine, six months ago.
 
 <br />
 
@@ -137,24 +139,13 @@ That's docpilot. It's the tool I wanted on my own machine, six months ago.
 
 **Cursor** (`~/.cursor/mcp.json`), **Windsurf**, and **VS Code** (`mcp.servers`) take the same shape.
 
-### Authentication
-
-docpilot looks for a GitHub token in this order — first one wins, none required:
-
-1. `--token <pat>` flag
-2. `$GITHUB_TOKEN` env var
-3. `gh auth token` if [the GitHub CLI](https://cli.github.com/) is installed and logged in
-4. Anonymous (60 req/hr REST, CDN does the heavy lifting)
-
-If you already run `gh auth login`, you're done — no env var to set. Run `docpilot doctor` to see which path was used and what scopes the token carries.
-
 **Codex CLI:**
 
 ```bash
 codex mcp add docpilot -- npx -y docpilot
 ```
 
-**Windows note:** `npx` is a shim, not an `.exe`, and several MCP clients fail with `spawn npx ENOENT`. Use the explicit shell wrapper:
+**Windows:** `npx` is a `.cmd` shim and several MCP clients fail to spawn it. Wrap it:
 
 ```jsonc
 {
@@ -169,9 +160,20 @@ codex mcp add docpilot -- npx -y docpilot
 
 Run `npx -y docpilot doctor` once to verify your environment.
 
+### Authentication
+
+docpilot looks for a GitHub token in this order — first one wins, none required:
+
+1. `--token <pat>` flag
+2. `$GITHUB_TOKEN` env var
+3. `gh auth token` if [the GitHub CLI](https://cli.github.com/) is installed and logged in
+4. Anonymous (60 req/hr REST; the CDN does the heavy lifting)
+
+If you already run `gh auth login`, you're done. `docpilot doctor` reports which path won.
+
 ### 2. Use it from your assistant
 
-Reference any GitHub repo as `owner/repo[@ref][#subpath]`:
+Reference any repo as `[forge:]owner/repo[@ref][#subpath]`:
 
 ```text
 "Set up Drizzle ORM with Postgres in Next.js 15 server actions"
@@ -180,55 +182,50 @@ Reference any GitHub repo as `owner/repo[@ref][#subpath]`:
 "Use the latest tamimbinhakim/dyadpy@main API to wire up an SSE endpoint"
 ```
 
-The model picks the right tool from the docpilot surface — `resolve_repo`, `list_docs`, `search_docs`, `fetch_doc`, `peek`, `get_changes`, `doc_quality`, `cache_status` — automatically. No magic incantation.
+The model picks the right tool from the docpilot surface automatically. No magic incantation.
 
 <br />
 
 ## Repo parameter format
-
-A single string. Optionally compound:
 
 ```text
 [forge:]owner/repo[@ref][#subpath]
 ```
 
 ```ts
-vercel/next.js                                          // main HEAD, repo root (default forge: GitHub)
+vercel/next.js                                          // main HEAD, GitHub
 vercel/next.js@v15.0.0                                  // tagged release
 vercel/next.js@canary                                   // branch
 vercel/next.js@a3b1f7c                                  // commit sha (short or full)
-tailwindlabs/tailwindcss@main#packages/tailwindcss/docs // monorepo docs subtree
-python/cpython@3.13#Doc                                 // only the Doc/ tree
+tailwindlabs/tailwindcss@main#packages/tailwindcss/docs // monorepo subtree
 gitlab:gitlab-org/gitlab@master                         // GitLab (alias: gl:)
 bitbucket:atlassian/python-bitbucket                    // Bitbucket Cloud (alias: bb:)
 ```
 
-See [`docs/reference/repo-spec.md`](docs/reference/repo-spec.md) for the full grammar.
+Full grammar: [`docs/reference/repo-spec.md`](docs/reference/repo-spec.md).
 
 <br />
 
 ## Tools
 
 ```ts
-resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm via npm/PyPI/crates first, GitHub last.
-              // Manifest-aware: prefers packages already in your cwd lockfile. Returns the
-              // latest release tag so the planner can pin on the first call. Suggests
-              // `npm install …` when the dep is missing.
-list_docs     // Markdown tree of docs files, with size hints, freshness badges, llms.txt highlights.
-              // Optional `since: "2025-04-01"` filter for "what changed since the model's cutoff?".
-fetch_doc     // One file at a pinned commit with YAML frontmatter (repo/ref/commit/path/size/
-              // source/~tokens) + body. Supports `lines` / `head_bytes` for partial reads.
-search_docs   // Path-based search — scores doc paths against the query, no content fetched.
-              // ~1s on any repo; the tree is cached per commit sha.
-search_all    // Fan-out path-based search across many repos at once. Pass `repos: [...]` or
-              // `from_lockfile: true`.
+resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm. Manifest-aware: prefers a dep
+              // already in your cwd lockfile. Returns the latest release tag so the
+              // planner can pin on the first call.
+list_docs     // Markdown tree of docs files, with size hints, freshness badges,
+              // llms.txt highlights. Optional `since: "2025-04-01"` filter for
+              // "what changed after the model's training cutoff?".
+fetch_doc     // One file at a pinned commit, YAML frontmatter + body. Supports
+              // `lines` / `head_bytes` for partial reads.
+search_docs   // Path-based search — scores doc paths against the query, no content
+              // fetched. ~1s on any repo; the tree is cached per commit sha.
+search_all    // Fan-out path search across many repos at once. Pass `repos: [...]`
+              // or `from_lockfile: true`.
 peek          // First N lines of a file before committing to a full fetch.
 get_changes   // Unified diff for one file across two refs.
 changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
 related_repos // Scrape README + llms.txt for github.com peer links — "often used with…".
-get_issues    // Search a repo's issues and PRs for a query (separate /search/issues, 30/min).
-doc_quality   // Scorecard: llms.txt, README, framework nav (Docusaurus / Mintlify / VitePress /
-              // Nextra / Fern), last-touch age.
+get_issues    // Search a repo's issues / PRs (separate /search/issues bucket, 30/min).
 cache_status  // Diagnostic: cache hits, sizes, snapshot sha, last revalidate.
 ```
 
@@ -281,7 +278,7 @@ Full reference: [`docs/reference/configuration.md`](docs/reference/configuration
 
 ## Recipes
 
-A "recipe" is a shareable bundle of pre-pinned repos. Pre-warm the cache for a stack with one command:
+A recipe is a shareable bundle of pre-pinned repos. Pre-warm a stack with one command:
 
 ```bash
 npx -y docpilot recipe install ./.docpilot.recipe.toml
@@ -302,7 +299,7 @@ spec  = "clerk/javascript@v5#packages/clerk-js"
 alias = "clerk"
 ```
 
-Recipe authoring: [`docs/guides/recipes.md`](docs/guides/recipes.md). Browse community recipes: [`examples/recipes/`](examples/recipes/).
+Authoring guide: [`docs/guides/recipes.md`](docs/guides/recipes.md). Examples: [`examples/recipes/`](examples/recipes/).
 
 <br />
 
@@ -320,20 +317,18 @@ No telemetry. No analytics. Your query strings never leave your machine except a
 
 ## Threat model
 
-Being honest about what's solved and what isn't:
-
 **What's structurally absent**
 
-- _No third-party authoring channel._ Context7's ContextCrush class — Custom Rules served from a registry into the agent's trusted channel ([Noma Security, Feb 2026](https://noma.security/)) — cannot exist in docpilot because there is no registry layer. There is nowhere for a "library owner" (other than the actual repo maintainer) to author content delivered to your agent.
-- _No hosted query log._ Your phrasing never goes to a third party. The only outbound calls are the ones listed above, and only when you make them.
-- _No "trust score" you can't see._ Resolution is a transparent race across package registries — npm/PyPI/crates/etc — with GitHub stars as the last resort. The candidates list is returned to the model when ambiguous; no opaque ranking decides on your behalf.
+- _No third-party authoring channel._ The ContextCrush class can't exist here — there's no registry layer, no place for anyone other than the actual repo maintainer to author content delivered to your agent.
+- _No hosted query log._ Outbound calls are the ones above, only when you make them.
+- _No "trust score" you can't see._ Resolution is a transparent race across package registries, GitHub stars as the last resort. Candidates are returned to the model when ambiguous.
 
 **What docpilot does _not_ solve**
 
-- _Content-layer prompt injection._ If a library's `README.md`, `llms.txt`, or other docs file contains an instruction-shaped payload (`"ignore previous instructions and …"`), `fetch_doc` will return it verbatim and your model will see it. This is true of any tool that retrieves third-party docs, including Context7, GitMCP, and `curl | pbcopy`. Mitigations: pin to a commit sha you've reviewed, prefer release tags over `@main` for production prompts, and don't auto-execute model output without review.
-- _Repository takeover._ If a maintainer's GitHub credentials are compromised and a malicious commit lands on the branch you've pinned to, docpilot will faithfully serve the malicious doc. Pin to a sha you trust, or use a CDN-only mode against a sha you've audited.
-- _CDN compromise._ jsDelivr is a donation-funded CDN; we use it because commit-pinned URLs are permanently cached and free against your GitHub bucket. If it ever served tampered bytes, docpilot would faithfully deliver them. Multi-CDN failover (`statically.io`, `raw.githack.com`) is documented but not in v1; in the meantime, run with `--no-cdn` if you need REST-only fetches.
-- _Recipe supply chain._ A `.docpilot.recipe.toml` you install can pre-warm any repo it lists. We treat recipes as user-trusted input — same posture as a `package.json` dependency. Read what you install.
+- _Content-layer prompt injection._ If a `README.md` or `llms.txt` contains an instruction-shaped payload, `fetch_doc` returns it verbatim and your model will see it. True of any tool that retrieves third-party docs. Pin to a sha you've reviewed; prefer release tags over `@main` for production prompts; don't auto-execute model output.
+- _Repository takeover._ A compromised maintainer can land a malicious commit on the branch you're pinned to. Pin a sha you trust.
+- _CDN compromise._ jsDelivr is donation-funded. If it served tampered bytes, docpilot would deliver them. Run with `--no-cdn` if that's not acceptable.
+- _Recipe supply chain._ A `.docpilot.recipe.toml` you install can pre-warm any repo it lists. Same posture as a `package.json` dep — read what you install.
 
 If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 
@@ -341,25 +336,21 @@ If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 ## When not to use docpilot
 
-docpilot is built for **documentation** retrieval, not source-code understanding. Reach for a different tool when:
-
-- You need symbol-level navigation across a repo (where is `useState` defined?) — use [`github-mcp-server`](https://github.com/github/github-mcp-server) (official) or [`deepwiki`](https://github.com/AsyncFuncAI/deepwiki-open).
-- You want to write to the repo (open issues, create PRs, commit) — docpilot is read-only by design. Use the official GitHub MCP server.
-- You want curated, ranked snippets across many libraries from a single hosted index — that's Context7's strength when its tradeoffs are acceptable to you.
-- You're running in an environment where outbound HTTPS is blocked. docpilot needs to reach `api.github.com` (or `cdn.jsdelivr.net`) at least once per repo to fetch anything new. A warm cache works fully offline.
+- You need symbol-level navigation across a repo (where is `useState` defined?) — use [`github-mcp-server`](https://github.com/github/github-mcp-server) or [`deepwiki`](https://github.com/AsyncFuncAI/deepwiki-open).
+- You want to write to the repo (open issues, create PRs, commit) — docpilot is read-only by design.
+- You want curated, ranked snippets across many libraries from one hosted index — that's Context7's strength when its tradeoffs are acceptable.
+- Your environment blocks outbound HTTPS. docpilot needs to reach `api.github.com` (or the CDN) at least once per repo. A warm cache works fully offline.
 
 <br />
 
 ## Honest tradeoffs
 
-A few decisions worth calling out before you build on top:
-
-- _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([GitHub changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's _why_ docpilot defaults to the jsDelivr CDN for raw reads, even when a PAT is present.
-- _Authenticated 304 responses are free_ against GitHub's primary rate limit ([docs.github.com](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot's `If-None-Match` flow is built around this — a warm cache effectively doesn't count against your 5,000/hr.
-- _GraphQL has no ETag._ For repeated fetches of the same files, REST + ETag is cheaper. docpilot only escalates to GraphQL on cold fetches of ≥ 4 files at once.
-- _No semantic search, no vector store — deliberate._ Pre-agentic retrieval handed the model a top-k chunk dump because it couldn't go look itself. Agentic clients can list a tree, read a path, decide, and call again — so the right primitive is the structure the corpus author already encoded (filenames, folders, llms.txt), not a similarity score over text we don't own. `search_docs` scores paths; `list_docs` shows the tree; `fetch_doc` returns the file. Full argument in [architecture.md](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
-- _MCP `outputSchema` support is uneven across clients._ As of May 2026 the TypeScript SDK, Claude Code, and Cursor validate it correctly; some clients pass `structuredContent` to the model verbatim (SEP-1624 is still draft). docpilot returns both `content` and `structuredContent` where useful; the markdown `content` is the source of truth.
-- _`llms.txt` is a proposal, not a standard._ Jeremy Howard published it in Sept 2024 and adoption is broad (Mintlify / Fern / Docusaurus / GitBook) but it's not an RFC. docpilot boosts hits inside `llms.txt` when present; it never _requires_ it.
+- _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's why docpilot defaults to jsDelivr for raw reads, even with a PAT.
+- _Authenticated 304s are free_ ([docs](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot's `If-None-Match` flow is built around this.
+- _GraphQL has no ETag._ For repeated fetches, REST + ETag is cheaper. We only escalate to GraphQL on cold fetches of ≥ 4 files at once.
+- _No semantic search, no vector store — deliberate._ Pre-agentic retrieval handed the model a top-k chunk dump because it couldn't go look itself. Agentic clients can list a tree, read a path, decide, and call again — so the right primitive is the structure the corpus author already encoded (filenames, folders, llms.txt). `search_docs` scores paths; `list_docs` shows the tree; `fetch_doc` returns the file. Full argument: [architecture.md](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
+- _MCP `outputSchema` support is uneven across clients_ as of May 2026. The TS SDK, Claude Code, and Cursor validate it; some clients pass `structuredContent` to the model verbatim. docpilot returns both where useful; markdown is the source of truth.
+- _`llms.txt` is a proposal, not a standard._ docpilot boosts hits inside it when present; it's never required.
 
 <br />
 
@@ -374,6 +365,7 @@ A few decisions worth calling out before you build on top:
 | [Authentication](docs/guides/authentication.md)   | GITHUB_TOKEN, GitHub App, anonymous         |
 | [Recipes](docs/guides/recipes.md)                 | Stack bundles                               |
 | [Caching](docs/guides/caching.md)                 | What's cached, where, for how long          |
+| [Extending](docs/guides/extending.md)             | Add a forge / lockfile parser / registry    |
 | [Troubleshooting](docs/guides/troubleshooting.md) | Windows, ENOENT, rate limits                |
 | [Comparison](docs/comparison.md)                  | docpilot vs Context7 vs GitMCP vs Ref Tools |
 | [Architecture](docs/internals/architecture.md)    | How it works inside                         |
@@ -384,13 +376,15 @@ A few decisions worth calling out before you build on top:
 
 ## Roadmap
 
-| Version        | Scope                                                                                                                                                                      | Target   |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| **v0.1** (MVP) | Core tools (`resolve_repo`, `list_docs`, `fetch_doc`, `search_docs`, `peek`), REST + CDN + ETag fetch, npm/PyPI/crates resolver, path-based search, cache, recipes, doctor | 6 weeks  |
-| **v0.2**       | `get_changes`, `doc_quality`, `cache_status`, freshness badges, llms.txt detection, lockfile pre-warm, GraphQL batch, examples mode, training-cutoff diff                  | +4 weeks |
-| **v0.3**       | Issue/PR awareness, private repo support, cross-repo linking, deeper monorepo subpath UX                                                                                   | +4 weeks |
-| **v0.4**       | Non-GitHub forges (GitLab, Bitbucket), local embeddings (opt-in), VS Code companion extension                                                                              | +6 weeks |
-| **v1.0**       | Stable surface, schema freeze, SLO docs, security review                                                                                                                   | Q4 2026  |
+| Version  | Scope                                                                                                                                                                                                                                                                                                                                                                  | Status     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **v0.1** | Core MCP tool surface for resolving repos, browsing/searching/fetching docs, comparing changes, finding related repos/issues, and inspecting cache state. REST + ETag + jsDelivr + GraphQL fetch. Path-based search. Multi-forge (GitHub, GitLab, Bitbucket). Plug-in registries for forges / lockfiles / package managers. Manifest-aware resolve. Recipes. `doctor`. | ✅ Shipped |
+| **v0.2** | Sharper freshness signals (per-file last-commit ages in `list_docs`). Better monorepo subpath UX. `examples`-aware `list_docs`. Lockfile-driven `--since-cutoff` flow.                                                                                                                                                                                                 | Next       |
+| **v0.3** | Private-repo support via `GITHUB_TOKEN repo` scope. GitHub App installation tokens for org-wide quota. Codeberg / Gitea / sourcehut forge plug-ins.                                                                                                                                                                                                                    | Planned    |
+| **v0.4** | Cross-repo `related_repos` graph. VS Code companion extension (out-of-band, opt-in HTTP shim).                                                                                                                                                                                                                                                                         | Planned    |
+| **v1.0** | Stable surface. Schema freeze. SLO docs. Security review.                                                                                                                                                                                                                                                                                                              | Q4 2026    |
+
+What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, a hosted resolver as authority, a curated library registry, or write operations on repos. See [non-goals in the architecture doc](docs/internals/architecture.md#why-this-shape).
 
 <br />
 
@@ -405,22 +399,13 @@ pnpm test
 pnpm dev          # runs docpilot from source
 ```
 
-Conventions and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The repo uses:
-
-- **TypeScript** (Node ≥ 20, `strict` + `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess`)
-- **[Biome](https://biomejs.dev/)** for JS / TS lint and format (`pnpm check`)
-- **prettier** for markdown only
-- **ruff** for Python (`scripts/`)
-- **commitlint** with [Conventional Commits](https://www.conventionalcommits.org/)
-- **changesets** for versioning and releases
-- **vitest** for unit and integration tests
-- **husky** + **lint-staged** for pre-commit gates
+Conventions and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The repo uses TypeScript (Node ≥ 20, strict everything), Biome for JS/TS, prettier for markdown, ruff for the few Python scripts under `scripts/`, commitlint with [Conventional Commits](https://www.conventionalcommits.org/), changesets for releases, and vitest for tests.
 
 <br />
 
 ## Become a Sponsor!
 
-docpilot is free, local-first, and built in the open. If your team relies on it — or you just want me to keep shipping the v0.x → v1.0 roadmap above — sponsoring covers the maintenance and the next round of features.
+docpilot is free and built in the open. If your team relies on it, sponsoring covers the maintenance and the next round of features.
 
 <div align="center">
 
@@ -432,9 +417,7 @@ docpilot is free, local-first, and built in the open. If your team relies on it 
 
 ## License
 
-[Apache-2.0](LICENSE).
-
-I picked Apache over MIT for the explicit patent grant, given how much the MCP ecosystem is still churning.
+[Apache-2.0](LICENSE). Apache over MIT for the explicit patent grant — the MCP ecosystem is still churning.
 
 <br />
 

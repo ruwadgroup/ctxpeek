@@ -1,6 +1,6 @@
 # Authentication
 
-docpilot is a local-first MCP server. The only entity that "authenticates" is **your** GitHub identity, and only against GitHub's API. There is no docpilot account.
+docpilot is local-first. The only thing that "authenticates" is your GitHub identity, against GitHub's API. There is no docpilot account.
 
 ## Three tiers, autodetected
 
@@ -35,9 +35,9 @@ A **fine-grained PAT** with `Contents: Read` on public repositories is enough.
 
 A classic PAT with the `public_repo` scope works equivalently.
 
-### Why authenticated 304s are the most important flag to flip
+### Why authed 304s matter
 
-Unauthenticated `If-None-Match` requests still count against the 60/hr anonymous bucket. **Authenticated** 304s do not. After the first session against a repo, almost every subsequent fetch is a free 304 — meaning a docpilot user with a PAT effectively has unlimited capacity for repeat reads.
+Unauthenticated `If-None-Match` requests still count against the 60/hr anonymous bucket. Authenticated 304s don't. After the first session against a repo, almost every subsequent fetch is a free 304 — a docpilot user with a PAT has effectively unlimited capacity for repeat reads.
 
 ## Token discovery
 

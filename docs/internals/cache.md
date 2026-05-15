@@ -1,6 +1,6 @@
 # Cache
 
-The cache is the difference between docpilot feeling instant and docpilot feeling like a network round-trip per file.
+The cache is the difference between docpilot feeling instant and docpilot feeling like one network round-trip per file. End-user view is in [`guides/caching.md`](../guides/caching.md); this is the internals.
 
 ## Layout
 

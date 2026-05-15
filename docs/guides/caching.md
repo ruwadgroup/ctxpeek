@@ -1,6 +1,6 @@
 # Caching
 
-docpilot keeps everything on disk. There is no in-memory daemon, no background process, no shared state across server instances.
+docpilot keeps everything on disk. No in-memory daemon, no background process, no shared state across server instances.
 
 ## Where
 

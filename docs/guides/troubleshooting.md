@@ -6,7 +6,7 @@ When in doubt, run the doctor:
 npx -y docpilot doctor
 ```
 
-It catches roughly 80% of "it just doesn't work" reports.
+It catches most "it just doesn't work" reports before you have to file one.
 
 ## `spawn npx ENOENT` on Windows
 
@@ -87,7 +87,7 @@ rm -rf ~/.cache/docpilot           # Linux
 
 ## Windsurf "all MCP servers stop loading"
 
-Older versions of Windsurf had a refresh-loop bug when one MCP server changed. docpilot does not share state across server instances and does not use SSE — confirmed working with Windsurf ≥ 1.4. If you hit this, restart Windsurf with all but docpilot disabled to isolate.
+Older Windsurf versions had a refresh-loop bug when one MCP server changed. docpilot doesn't share state across server instances and doesn't use SSE — confirmed working on Windsurf ≥ 1.4. If you still hit this, restart Windsurf with all but docpilot disabled to isolate.
 
 ## File reported as too large to fetch
 

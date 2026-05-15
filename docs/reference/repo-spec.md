@@ -2,6 +2,8 @@
 
 The single string `[forge:]owner/repo[@ref][#subpath]` is the canonical input across every docpilot tool.
 
+This format is the product model, not just syntax. docpilot does not ask an agent to pick a hosted library ID and hope the right version is indexed. It asks for the source repo plus the exact git address the user cares about: default branch, release tag, feature branch, commit sha, and optionally a monorepo subdirectory.
+
 ## Grammar
 
 ```ebnf
@@ -56,4 +58,6 @@ A ref → sha resolution is performed once at the start of each tool call. The r
 
 ## Why a single string
 
-The single-string form is what fits a slash command, a chat message, or a tool input. It is also what users already type when referring to repos ("`vercel/next.js`") so there is no learning curve.
+The single-string form fits a slash command, a chat message, or a tool input. It's what people already type when referring to repos ("`vercel/next.js`") — no learning curve.
+
+It also keeps version intent attached to every tool call. `list_docs`, `search_docs`, `fetch_doc`, `get_changes`, and `changelog` all speak the same ref-native language, so an agent can move from "show me Next 15 routing docs" to "compare that file with Next 14" without switching systems.

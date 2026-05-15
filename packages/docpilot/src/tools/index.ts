@@ -3,7 +3,6 @@
 export * from "./cacheStatus.js";
 export * from "./changelog.js";
 export * from "./context.js";
-export * from "./docQuality.js";
 export * from "./fetchDoc.js";
 export * from "./getChanges.js";
 export * from "./getIssues.js";

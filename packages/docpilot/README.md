@@ -29,7 +29,7 @@ src/
 ├── doctor.ts                          // Environment self-check
 ├── recipes.ts                         // Pre-warm bundles
 ├── lockfile.ts                        // Manifest detection (façade)
-├── tools/                             // 12 MCP tools, one file each
+├── tools/                             // MCP tool implementations
 │   ├── resolveRepo.ts
 │   ├── listDocs.ts
 │   ├── fetchDoc.ts
@@ -40,7 +40,6 @@ src/
 │   ├── changelog.ts
 │   ├── relatedRepos.ts
 │   ├── getIssues.ts
-│   ├── docQuality.ts
 │   ├── cacheStatus.ts
 │   └── context.ts                     // Shared tool context + Snapshot resolver
 ├── fetch/                             // REST + ETag → CDN → GraphQL strategy

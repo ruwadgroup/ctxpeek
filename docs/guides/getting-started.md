@@ -1,6 +1,6 @@
 # Getting started
 
-This guide walks you from "no docpilot installed" to "my coding assistant pulled fresh Drizzle ORM docs into the chat."
+From "no docpilot installed" to "my coding assistant pulled fresh Drizzle ORM docs into the chat" in five minutes.
 
 ## Prerequisites
 
@@ -144,6 +144,7 @@ The next session has zero cold-start latency for those repos.
 
 - [Authentication](authentication.md) — bring your own token, or run anonymously
 - [Configuration](../reference/configuration.md) — every knob
-- [Tools reference](../reference/tools.md) — all 12 tools
-- [Extending docpilot](extending.md) — add a forge, lockfile parser, or registry probe
+- [Tools reference](../reference/tools.md) — inputs, outputs, and examples
+- [Extending docpilot](extending.md) — add a forge, lockfile parser, or registry probe (one file each)
+- [Architecture](../internals/architecture.md) — how it works inside, and why no vector store
 - [Troubleshooting](troubleshooting.md) — when things go sideways
