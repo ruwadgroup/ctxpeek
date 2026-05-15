@@ -80,12 +80,31 @@ Context7 is the obvious comparison, but the core difference is not "hosted vs lo
 
 Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. ctxpeek starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, inspects paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
 
+For an AI agent, the loop looks different:
+
+```text
+Context7:
+  resolve a library ID
+  ask the hosted corpus for docs about a topic
+  receive selected context
+  answer from that curated bundle
+
+ctxpeek:
+  resolve or accept owner/repo@ref
+  list the docs tree at that git snapshot
+  choose the exact path to inspect
+  fetch, peek, compare refs, and repeat as needed
+```
+
+So Context7 is retrieval as answer assembly: the service decides which corpus entries fit the topic. ctxpeek is retrieval as navigation: the model keeps the source tree in the loop and decides the next file, ref, or subpath to inspect.
+
 |                              | Context7                                                                                          | ctxpeek                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Thinking model**           | Resolve a library ID, ask for a topic, receive curated context from the hosted corpus.            | Resolve a repo/ref, inspect the tree, fetch exact files from the matching git snapshot.                                                |
+| **Agent control**            | The agent mostly controls topic, token budget, and follow-up question.                            | The agent controls repo, ref, subpath, file path, partial reads, diffs, and follow-up navigation.                                      |
 | **Version model**            | Version-specific library IDs are possible when that version exists in the corpus.                 | Branches, tags, and commit shas are the native address space: `owner/repo@main`, `@v15.0.0`, `@<sha>`.                                 |
 | **Fresh dev branches**       | A new library or version has to be submitted, crawled, indexed, or refreshed before it is useful. | Works as soon as the ref exists on the forge. Pin `@<sha>` and the model reads the exact docs you just pushed.                         |
-| **Agent workflow**           | Good for "give me the relevant snippet for this topic."                                           | Good for "show me this project's docs at this version, then let the agent navigate."                                                   |
+| **Agent workflow**           | Best for "give me the relevant snippet for this topic."                                           | Best for "show me this project's docs at this version, then let the agent navigate."                                                   |
 | **Monorepos**                | The library ID usually points at a selected docs surface.                                         | `#subpath` is first-class: `vercel/next.js@canary#packages/next/src/lib`.                                                              |
 | **Library coverage**         | Curated registry. If it is not in the corpus, it must be added first.                             | Any public repo on GitHub, GitLab, or Bitbucket. Including your own libraries and unreleased branches.                                 |
 | **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` verifies registry candidates on the forge, scores package/repo evidence, and returns alternatives when ambiguous.       |
