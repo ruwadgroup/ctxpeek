@@ -20,7 +20,7 @@ docs/
 │   └── exit-codes.md            // CLI exit codes
 ├── internals/
 │   ├── architecture.md          // Layer-by-layer design + plug-in registries
-│   ├── fetch-strategy.md        // REST + ETag → CDN → GraphQL
+│   ├── fetch-strategy.md        // Cache → CDN → REST/ETag
 │   └── cache.md                 // Content-addressed blob store
 └── comparison.md                // docpilot vs Context7 vs GitMCP vs Ref Tools
 ```

@@ -176,9 +176,8 @@ export class GithubGraphqlClient {
 
   /**
    * Batch metadata for many (owner, repo) pairs in a single GraphQL call
-   * via aliased subqueries. Used by search_all's from_lockfile path to
-   * collapse N×getRepo calls into one round-trip. Returns parallel array;
-   * a null slot means the repo was missing or the alias failed.
+   * via aliased subqueries. Returns a parallel array; a null slot means the
+   * repo was missing or the alias failed.
    */
   async batchGetRepoMetadata(
     pairs: ReadonlyArray<{ owner: string; repo: string }>,

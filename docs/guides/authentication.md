@@ -1,18 +1,19 @@
 # Authentication
 
-docpilot is local-first. The only thing that "authenticates" is your GitHub identity, against GitHub's API. There is no docpilot account.
+docpilot is local-first. There is no docpilot account; tokens are only used to authenticate against the forge APIs that serve the repos you ask for.
 
-## Three tiers, autodetected
+## Modes, autodetected
 
-| Tier                  | What you provide                       | Rate limit                               | When to use            |
-| --------------------- | -------------------------------------- | ---------------------------------------- | ---------------------- |
-| **Anonymous**         | nothing                                | 60 REST/hr per IP; CDN unmetered         | Casual experimentation |
-| **PAT** (recommended) | `GITHUB_TOKEN` env var                 | 5,000 REST/hr; conditional 304s are free | Daily use              |
-| **GitHub App**        | `GITHUB_APP_ID` + `GITHUB_PRIVATE_KEY` | up to 15,000 REST/hr                     | Org-wide deployments   |
+| Mode                       | What you provide            | Notes                                               |
+| -------------------------- | --------------------------- | --------------------------------------------------- |
+| **Anonymous**              | nothing                     | GitHub REST is 60 req/hr per IP; CDN reads are free |
+| **GitHub token**           | `GITHUB_TOKEN` or `--token` | Higher REST quota; `gh auth token` is also detected |
+| **GitLab token**           | `GITLAB_TOKEN`              | Used for `gitlab:` / `gl:` repo specs               |
+| **Bitbucket bearer token** | `BITBUCKET_TOKEN`           | Used for `bitbucket:` / `bb:` repo specs            |
 
 ## Personal Access Token (PAT)
 
-A **fine-grained PAT** with `Contents: Read` on public repositories is enough.
+A **fine-grained PAT** with `Contents: Read` on public repositories is enough for public GitHub docs.
 
 1. Go to <https://github.com/settings/tokens?type=beta>
 2. Create a new token with:
@@ -33,31 +34,23 @@ A **fine-grained PAT** with `Contents: Read` on public repositories is enough.
 }
 ```
 
-A classic PAT with the `public_repo` scope works equivalently.
+A classic PAT with the `public_repo` scope works equivalently for public repos. If you need private GitHub repos, the token must have access to those repositories and their contents.
 
 ### Why authed 304s matter
 
-Unauthenticated `If-None-Match` requests still count against the 60/hr anonymous bucket. Authenticated 304s don't. After the first session against a repo, almost every subsequent fetch is a free 304 — a docpilot user with a PAT has effectively unlimited capacity for repeat reads.
+Unauthenticated `If-None-Match` requests still count against the 60/hr anonymous bucket. Authenticated 304s do not. docpilot prefers local cache and CDN reads where possible, and uses conditional REST requests when it falls back to GitHub's contents API.
 
 ## Token discovery
 
-In order:
+GitHub token discovery order:
 
-1. `GITHUB_TOKEN` env var (canonical)
-2. `gh auth token` if `gh` is on `PATH` and `--use-gh` is set
-3. `~/.config/docpilot/token` (fallback)
-4. None — anonymous mode
+1. `--token <pat>` CLI flag
+2. The env var named by `[auth] github_token_env` (default `GITHUB_TOKEN`)
+3. `GITHUB_TOKEN` as a fallback when `github_token_env` points elsewhere
+4. `gh auth token` if the GitHub CLI is installed and logged in
+5. None — anonymous mode
 
-## GitHub App (advanced)
-
-For shared CI or org-wide deployments:
-
-```bash
-export GITHUB_APP_ID=123456
-export GITHUB_PRIVATE_KEY_PATH=~/.config/docpilot/app.pem
-```
-
-docpilot refreshes the installation token every 50 minutes (1-hr expiry).
+GitLab and Bitbucket tokens are read directly from `GITLAB_TOKEN` and `BITBUCKET_TOKEN` when those forge specs are used.
 
 ## Anonymous
 
@@ -65,4 +58,4 @@ If you set no token, docpilot defaults to the jsDelivr CDN for raw content (comm
 
 ## Privacy
 
-Your token never leaves the docpilot process running on your machine. It is read from the env var (or the configured fallback), used in the `Authorization` header for `api.github.com` requests, and that's it. docpilot has no telemetry and makes no network call to any host outside the [allow-list](../../README.md#privacy).
+Your token never leaves the docpilot process running on your machine. It is read from the CLI flag, env var, or `gh auth token`, then used only for the matching forge API request headers. docpilot has no telemetry and makes no network call to any host outside the [allow-list](../../README.md#privacy).

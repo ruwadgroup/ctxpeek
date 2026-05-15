@@ -3,8 +3,8 @@
  *
  *   - hard cap on concurrent in-flight requests (default 8, well under shared 100)
  *   - token bucket (default 60 req/min) to stay clear of 900 pts/min endpoint cap
- *   - exponential backoff with Retry-After honor on 429/403 is in HttpClient
- *   - X-RateLimit-Remaining < 100 → preferCdn switches on for the rest of session
+ *   - exponential backoff with optional Retry-After honor on 429/5xx is in HttpClient
+ *   - X-RateLimit-Remaining < 100 → degraded mode favors CDN where available
  *   - state (latestRemaining / resetAt / degraded) survives process restarts via
  *     an optional on-disk file so a fresh MCP server inherits the budget.
  *

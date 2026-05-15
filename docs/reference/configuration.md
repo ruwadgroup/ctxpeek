@@ -22,6 +22,7 @@ gc_days          = 14
 
 [fetch]
 prefer_cdn         = true                # true if no PAT
+cdn_enabled        = true
 concurrent_max     = 8
 secondary_budget   = 60                  # req/min ceiling
 honor_retry_after  = true
@@ -30,11 +31,11 @@ honor_retry_after  = true
 github_token_env = "GITHUB_TOKEN"
 
 [resolve]
-ecosystems              = ["npm", "pypi", "crates", "go", "rubygems"]
+ecosystems              = ["npm", "pypi", "crates", "go", "rubygems", "packagist", "hex"]
 github_search_fallback  = true
 
 [experiments]
-prewarm_from_lockfile = true             # opt-in via MCP `roots` capability
+prewarm_from_lockfile = false            # reserved; no stable runtime behavior yet
 ```
 
 ## Keys
@@ -49,12 +50,13 @@ prewarm_from_lockfile = true             # opt-in via MCP `roots` capability
 
 ### `[fetch]`
 
-| Key                 | Type      | Default      | Notes                     |
-| ------------------- | --------- | ------------ | ------------------------- |
-| `prefer_cdn`        | `boolean` | `!has_token` | Use jsDelivr first        |
-| `concurrent_max`    | `number`  | `8`          | In-flight cap to GitHub   |
-| `secondary_budget`  | `number`  | `60`         | Token-bucket req/min      |
-| `honor_retry_after` | `boolean` | `true`       | Honor 429/403 Retry-After |
+| Key                 | Type      | Default      | Notes                                |
+| ------------------- | --------- | ------------ | ------------------------------------ |
+| `prefer_cdn`        | `boolean` | `!has_token` | Use jsDelivr first                   |
+| `cdn_enabled`       | `boolean` | `true`       | Allow CDN reads                      |
+| `concurrent_max`    | `number`  | `8`          | In-flight cap to GitHub              |
+| `secondary_budget`  | `number`  | `60`         | Token-bucket req/min                 |
+| `honor_retry_after` | `boolean` | `true`       | Honor Retry-After on 429/5xx retries |
 
 ### `[auth]`
 
@@ -64,27 +66,25 @@ prewarm_from_lockfile = true             # opt-in via MCP `roots` capability
 
 ### `[resolve]`
 
-| Key                      | Type       | Default                                   | Notes                        |
-| ------------------------ | ---------- | ----------------------------------------- | ---------------------------- |
-| `ecosystems`             | `string[]` | `["npm","pypi","crates","go","rubygems"]` | Probe order                  |
-| `github_search_fallback` | `boolean`  | `true`                                    | Allow `/search/repositories` |
+| Key                      | Type       | Default                                                     | Notes                        |
+| ------------------------ | ---------- | ----------------------------------------------------------- | ---------------------------- |
+| `ecosystems`             | `string[]` | `["npm","pypi","crates","go","rubygems","packagist","hex"]` | Probe order                  |
+| `github_search_fallback` | `boolean`  | `true`                                                      | Allow `/search/repositories` |
 
 ### `[experiments]`
 
-| Key                     | Type      | Default | Notes                                                                             |
-| ----------------------- | --------- | ------- | --------------------------------------------------------------------------------- |
-| `prewarm_from_lockfile` | `boolean` | `true`  | Read `package.json` / `requirements.txt` / `Cargo.toml` to warm the resolve cache |
+| Key                     | Type      | Default | Notes                                                                 |
+| ----------------------- | --------- | ------- | --------------------------------------------------------------------- |
+| `prewarm_from_lockfile` | `boolean` | `false` | Reserved for a future MCP-roots flow; currently accepted but not used |
 
 ## Environment variables
 
-| Variable                                         | Equivalent key                           |
-| ------------------------------------------------ | ---------------------------------------- |
-| `GITHUB_TOKEN`                                   | `[auth] github_token_env` value          |
-| `GITHUB_APP_ID`                                  | (advanced) GitHub App mode               |
-| `GITHUB_PRIVATE_KEY` / `GITHUB_PRIVATE_KEY_PATH` | (advanced) GitHub App mode               |
-| `DOCPILOT_CACHE_DIR`                             | `[cache] dir`                            |
-| `DOCPILOT_NO_CDN`                                | `prefer_cdn = false`                     |
-| `DOCPILOT_LOG_LEVEL`                             | `"debug" \| "info" \| "warn" \| "error"` |
+| Variable             | Behavior                                                         |
+| -------------------- | ---------------------------------------------------------------- |
+| `GITHUB_TOKEN`       | GitHub token, unless `[auth] github_token_env` names another env |
+| `GITLAB_TOKEN`       | Token for `gitlab:` / `gl:` repo specs                           |
+| `BITBUCKET_TOKEN`    | Bearer token for `bitbucket:` / `bb:` repo specs                 |
+| `DOCPILOT_LOG_LEVEL` | `"debug" \| "info" \| "warn" \| "error"`                         |
 
 ## CLI flags
 
@@ -93,7 +93,8 @@ docpilot [options]
 
   --token <token>          override GITHUB_TOKEN
   --cache-dir <path>       override [cache] dir
-  --no-cdn                 set prefer_cdn = false
+  --no-cdn                 disable CDN reads
+  --cdn-only               prefer CDN reads before REST
   --config <path>          explicit .docpilot.toml path
   --log-level <level>      debug | info | warn | error
   --help, -h               show this message

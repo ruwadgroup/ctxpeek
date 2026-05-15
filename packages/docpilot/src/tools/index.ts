@@ -10,5 +10,3 @@ export * from "./listDocs.js";
 export * from "./peek.js";
 export * from "./relatedRepos.js";
 export * from "./resolveRepo.js";
-export * from "./searchAll.js";
-export * from "./searchDocs.js";

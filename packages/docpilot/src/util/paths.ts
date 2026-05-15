@@ -11,7 +11,6 @@ export type DocpilotPaths = {
   readonly logs: string;
   readonly blobs: string;
   readonly refs: string;
-  readonly indexes: string;
   readonly resolutionsFile: string;
   readonly etagMapFile: string;
   readonly metaFile: string;
@@ -32,7 +31,6 @@ export function paths(cacheDir: string, configDir: string, logDir: string): Docp
     logs: expandHome(logDir),
     blobs: path.join(cache, "blobs"),
     refs: path.join(cache, "refs"),
-    indexes: path.join(cache, "indexes"),
     resolutionsFile: path.join(cache, "resolutions.json"),
     etagMapFile: path.join(cache, "etag-map.json"),
     metaFile: path.join(cache, "meta.json"),
@@ -53,7 +51,6 @@ export async function ensureDirs(p: DocpilotPaths): Promise<void> {
     fs.mkdir(p.logs, { recursive: true }),
     fs.mkdir(p.blobs, { recursive: true }),
     fs.mkdir(p.refs, { recursive: true }),
-    fs.mkdir(p.indexes, { recursive: true }),
   ]);
 }
 
@@ -72,8 +69,4 @@ export function refFile(refsDir: string, owner: string, repo: string, ref: strin
 
 export function treeFile(refsDir: string, owner: string, repo: string, sha: string): string {
   return path.join(refsDir, repoCacheKey(owner, repo), `tree-${sha}.json`);
-}
-
-export function indexFile(indexesDir: string, owner: string, repo: string, sha: string): string {
-  return path.join(indexesDir, `${repoCacheKey(owner, repo)}--${sha}.minisearch.json`);
 }

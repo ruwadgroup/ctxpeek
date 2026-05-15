@@ -1,4 +1,4 @@
-// Content-addressed blob store.
+// Snapshot-addressed blob store.
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { blobPath, sha256Hex } from "../util/index.js";
@@ -9,11 +9,11 @@ export type BlobStore = {
    * Read the bytes stored under `key`. `key` is the docpilot cache key
    * (sha256 of "{commitSha}:{path}") — NOT the sha256 of the content. The
    * content sha is recoverable via `writeAndComputeSha` for callers that
-   * want content-addressed storage separately.
+   * want byte-hash storage separately.
    */
   read(key: string): Promise<Uint8Array>;
   write(key: string, bytes: Uint8Array): Promise<void>;
-  /** Write bytes under their content-sha (sha256 of the bytes). */
+  /** Utility for callers that need content-sha addressing. The main cache uses snapshot/path keys. */
   writeAndComputeSha(bytes: Uint8Array): Promise<string>;
   /** Total bytes stored in the blobs subtree (best-effort, sums file sizes). */
   size(): Promise<number>;

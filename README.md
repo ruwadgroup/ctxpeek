@@ -40,7 +40,7 @@
 
 <div align="center">
 
-> **Status:** v0.1 shipped. GitHub + GitLab + Bitbucket. Plug-in slots for new forges, lockfiles, and registries.
+> **Status:** Current baseline complete and stable. GitHub + GitLab + Bitbucket. Plug-in slots for new forges, lockfiles, and registries. Planning is focused on what comes next.
 
 </div>
 
@@ -56,17 +56,17 @@ npx -y docpilot
 
 When you say _"show me the routing docs from `vercel/next.js@v15.0.0`"_, your model calls docpilot, docpilot fetches the actual file from the actual repo at that commit, returns it as markdown, and your model works with information it can trust.
 
-It also resolves fuzzy names (`"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex) and can search across every dep in your lockfile in one call (`search_all`).
+It also resolves fuzzy names (`"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex), so the model can get to the right repo before listing its docs tree.
 
 Built for agentic clients. The model lists a tree, picks a path, reads the file, decides if it's right, calls again. We don't do top-k chunk dumps and we don't run a vector store — agents navigate structure faster than they unpack similarity scores. More on that in [the architecture doc](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
 
 What you get out of the box:
 
-- **Local-first.** Everything — cache, search, fetch — runs on your machine. No telemetry. Your queries don't leave.
+- **Local-first.** Cache, listing, and fetch all run on your machine. No telemetry. Your queries don't leave.
 - **Any public repo on GitHub, GitLab, or Bitbucket.** Codeberg / Gitea / sourcehut are one file away — see [extending docpilot](docs/guides/extending.md).
 - **Ref-native by default.** Branch, tag, commit sha, and monorepo subpath are part of the input: `owner/repo@ref#subpath`.
 - **Version-pinned docs without ingestion.** `owner/repo@v15.0.0`, `owner/repo@main`, and `owner/repo@<sha>` all read the matching git snapshot directly.
-- **Free, forever.** Bring your own GitHub PAT — or none. Authenticated `If-None-Match` 304s don't count against your rate limit, so a warm cache is effectively unlimited.
+- **Free, forever.** Bring your own GitHub PAT — or none. A warm cache reads locally; authenticated conditional REST responses that return 304 do not count against your GitHub primary rate limit.
 - **Markdown out, not JSON.** ~75% smaller for the same information. Every response self-reports `~tokens` so the model can budget.
 - **No third-party instruction channel.** docpilot only serves file contents from repos you name. The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry) is structurally absent — see [Threat model](#threat-model).
 
@@ -76,7 +76,7 @@ What you get out of the box:
 
 Context7 is the obvious comparison, but the core difference is not "hosted vs local" or even privacy. The core difference is the retrieval model.
 
-Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. docpilot starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, searches paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
+Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. docpilot starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, inspects paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
 
 |                              | Context7                                                                                          | docpilot                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -114,7 +114,7 @@ So I'd do the dance:
 
 I tried Context7. It's well-built and the team clearly cares. But its unit of work is a library in a hosted docs corpus, not a git ref. My problem was ref-shaped: this branch, this tag, this commit, this monorepo package. My library changed thirty minutes ago. I needed the docs at the version I was actually using, not the nearest indexed version.
 
-The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a sha for reproducibility, pin to `@main` for HEAD. ETag-revalidate so repeat reads cost zero. Cache locally. No middleman.
+The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a sha for reproducibility, pin to `@main` for branch docs, cache locally so repeat reads cost zero, and use ETags when REST fallback has a validator. No middleman.
 
 That's docpilot. The tool I wanted on my own machine, six months ago.
 
@@ -217,10 +217,6 @@ list_docs     // Markdown tree of docs files, with size hints, freshness badges,
               // "what changed after the model's training cutoff?".
 fetch_doc     // One file at a pinned commit, YAML frontmatter + body. Supports
               // `lines` / `head_bytes` for partial reads.
-search_docs   // Path-based search — scores doc paths against the query, no content
-              // fetched. ~1s on any repo; the tree is cached per commit sha.
-search_all    // Fan-out path search across many repos at once. Pass `repos: [...]`
-              // or `from_lockfile: true`.
 peek          // First N lines of a file before committing to a full fetch.
 get_changes   // Unified diff for one file across two refs.
 changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
@@ -236,7 +232,7 @@ Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).
 ```text
 docpilot                          Start the MCP stdio server (default)
 docpilot doctor                   Environment self-check
-docpilot warm <spec...>           Pre-pull trees + indexes for repos or a recipe
+docpilot warm <spec...>           Pre-pull refs + doc trees for repos or a recipe
 docpilot recipe install <path>    Pre-warm from a recipe file
 docpilot cache status [repo]      On-disk cache report
 docpilot cache gc                 Garbage-collect the cache
@@ -346,10 +342,10 @@ If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 ## Honest tradeoffs
 
 - _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's why docpilot defaults to jsDelivr for raw reads, even with a PAT.
-- _Authenticated 304s are free_ ([docs](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot's `If-None-Match` flow is built around this.
-- _GraphQL has no ETag._ For repeated fetches, REST + ETag is cheaper. We only escalate to GraphQL on cold fetches of ≥ 4 files at once.
-- _No semantic search, no vector store — deliberate._ Pre-agentic retrieval handed the model a top-k chunk dump because it couldn't go look itself. Agentic clients can list a tree, read a path, decide, and call again — so the right primitive is the structure the corpus author already encoded (filenames, folders, llms.txt). `search_docs` scores paths; `list_docs` shows the tree; `fetch_doc` returns the file. Full argument: [architecture.md](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
-- _MCP `outputSchema` support is uneven across clients_ as of May 2026. The TS SDK, Claude Code, and Cursor validate it; some clients pass `structuredContent` to the model verbatim. docpilot returns both where useful; markdown is the source of truth.
+- _Authenticated 304s are free_ ([docs](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot uses `If-None-Match` on REST fallbacks when it has an ETag.
+- _GraphQL has no ETag._ For file content, local cache + CDN + REST/ETag is the better path. GraphQL is currently reserved for metadata batching where it reduces resolver overhead.
+- _No semantic search, no vector store — deliberate._ Pre-agentic retrieval handed the model a top-k chunk dump because it couldn't go look itself. Agentic clients can list a tree, read a path, decide, and call again — so the right primitive is the structure the corpus author already encoded (filenames, folders, llms.txt). `list_docs` shows the tree; `fetch_doc` returns the file. Full argument: [architecture.md](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
+- _MCP structured output support is uneven across clients_ as of May 2026. Some clients pass `structuredContent` to the model verbatim. docpilot returns structured data only where useful; markdown is the source of truth.
 - _`llms.txt` is a proposal, not a standard._ docpilot boosts hits inside it when present; it's never required.
 
 <br />
@@ -362,7 +358,7 @@ If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 | [Configuration](docs/reference/configuration.md)  | All config keys                             |
 | [Tools reference](docs/reference/tools.md)        | Every tool's input / output                 |
 | [Repo spec grammar](docs/reference/repo-spec.md)  | The `owner/repo[@ref][#subpath]` format     |
-| [Authentication](docs/guides/authentication.md)   | GITHUB_TOKEN, GitHub App, anonymous         |
+| [Authentication](docs/guides/authentication.md)   | Tokens, `gh auth`, anonymous mode           |
 | [Recipes](docs/guides/recipes.md)                 | Stack bundles                               |
 | [Caching](docs/guides/caching.md)                 | What's cached, where, for how long          |
 | [Extending](docs/guides/extending.md)             | Add a forge / lockfile parser / registry    |
@@ -376,13 +372,17 @@ If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-| Version  | Scope                                                                                                                                                                                                                                                                                                                                                                  | Status     |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| **v0.1** | Core MCP tool surface for resolving repos, browsing/searching/fetching docs, comparing changes, finding related repos/issues, and inspecting cache state. REST + ETag + jsDelivr + GraphQL fetch. Path-based search. Multi-forge (GitHub, GitLab, Bitbucket). Plug-in registries for forges / lockfiles / package managers. Manifest-aware resolve. Recipes. `doctor`. | ✅ Shipped |
-| **v0.2** | Sharper freshness signals (per-file last-commit ages in `list_docs`). Better monorepo subpath UX. `examples`-aware `list_docs`. Lockfile-driven `--since-cutoff` flow.                                                                                                                                                                                                 | Next       |
-| **v0.3** | Private-repo support via `GITHUB_TOKEN repo` scope. GitHub App installation tokens for org-wide quota. Codeberg / Gitea / sourcehut forge plug-ins.                                                                                                                                                                                                                    | Planned    |
-| **v0.4** | Cross-repo `related_repos` graph. VS Code companion extension (out-of-band, opt-in HTTP shim).                                                                                                                                                                                                                                                                         | Planned    |
-| **v1.0** | Stable surface. Schema freeze. SLO docs. Security review.                                                                                                                                                                                                                                                                                                              | Q4 2026    |
+The current baseline is done: the MCP server, resolver, doc tree/fetch tools, change/changelog helpers, related repo and issue lookup, cache inspection, `doctor`, recipes, multi-forge support, and extension registries are in place.
+
+The next roadmap pass is planning work, not a committed release train:
+
+| Area              | Planning direction                                                                                               | Status  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ------- |
+| Freshness UX      | Clearer branch/ref freshness messaging, richer per-file last-commit signals, and better changed-since workflows. | Scoping |
+| Monorepos         | Smoother `#subpath` discovery, clearer examples/cookbook surfacing, and better large-tree behavior.              | Scoping |
+| Auth + forges     | Harden private-repo paths, document token scopes per forge, and evaluate Codeberg / Gitea / sourcehut adapters.  | Scoping |
+| Ecosystem breadth | More lockfile parsers and registry probes where they materially improve `resolve_repo` and manifest-aware flows. | Backlog |
+| v1 readiness      | Schema freeze, SLO docs, security review, release hygiene, and sharper compatibility notes for MCP clients.      | Backlog |
 
 What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, a hosted resolver as authority, a curated library registry, or write operations on repos. See [non-goals in the architecture doc](docs/internals/architecture.md#why-this-shape).
 

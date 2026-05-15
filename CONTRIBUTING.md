@@ -73,8 +73,8 @@ examples/
 ## Code style
 
 - **TypeScript** for runtime code. Strict mode, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`.
-- **oxlint + oxfmt** for JS/TS lint and format. Configured in `.oxlintrc.json` and `.oxfmtrc.json`.
-- **prettier** for **markdown only**. JS/TS is handled by oxfmt; YAML/TOML/Python by their own tools.
+- **Biome** for JS/TS lint and format. Configured in `biome.json`.
+- **prettier** for **markdown only**. Python is handled by ruff.
 - **ruff** for Python. Configured in `ruff.toml`.
 - **Conventional Commits** enforced on PR titles and local commits via husky + commitlint. See `commitlint.config.js` for allowed types and scopes.
 

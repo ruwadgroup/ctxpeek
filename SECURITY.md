@@ -27,8 +27,8 @@ In scope:
 - The `docpilot` npm package and its runtime behavior
 - The `docpilot` CLI binary
 - Configuration parsing (`.docpilot.toml`, `.docpilot.recipe.toml`)
-- Cache integrity (content-addressed blob store)
-- Token handling (`GITHUB_TOKEN` and GitHub App credentials)
+- Cache integrity (snapshot-addressed blob store)
+- Token handling (`GITHUB_TOKEN`, `GITLAB_TOKEN`, `BITBUCKET_TOKEN`, and `gh auth token`)
 - The repo string parser (`owner/repo[@ref][#subpath]`)
 
 Out of scope:
@@ -44,7 +44,7 @@ docpilot's premise is that **the canonical source for a library's docs is its gi
 - We trust the bytes from `github.com/{owner}/{repo}` and the same content via jsDelivr (commit-pinned).
 - We do **not** introduce a third-party instruction channel that could carry prompt-injection payloads (no registry, no "custom rules" surface).
 - Recipes are user-trusted input — installing a recipe from a stranger extends trust to whichever repos that recipe pins. This is documented in [docs/guides/recipes.md](docs/guides/recipes.md).
-- Tokens (`GITHUB_TOKEN`, GitHub App private key) are read from the local environment and only used in `Authorization` headers to `api.github.com`. They are never logged or transmitted elsewhere.
+- Tokens are read from the local CLI/env/`gh auth` source and only used in request headers for the matching forge API. They are never logged or transmitted elsewhere.
 
 ## Disclosure
 

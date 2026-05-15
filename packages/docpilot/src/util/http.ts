@@ -19,15 +19,18 @@ export type HttpRequestInit = {
 export type HttpClientOptions = {
   readonly userAgent?: string;
   readonly defaultTimeoutMs?: number;
+  readonly honorRetryAfter?: boolean;
 };
 
 export class HttpClient {
   private readonly userAgent: string;
   private readonly defaultTimeoutMs: number;
+  private readonly honorRetryAfter: boolean;
 
   constructor(opts: HttpClientOptions = {}) {
     this.userAgent = opts.userAgent ?? `docpilot/${VERSION} (+https://github.com/tamimbinhakim/docpilot)`;
     this.defaultTimeoutMs = opts.defaultTimeoutMs ?? 15_000;
+    this.honorRetryAfter = opts.honorRetryAfter ?? true;
   }
 
   async fetch(url: string, init: HttpRequestInit = {}): Promise<HttpResponse> {
@@ -60,7 +63,7 @@ export class HttpClient {
         const respHeaders = flattenHeaders(res.headers);
 
         if ((res.statusCode === 429 || res.statusCode >= 500) && attempt < maxRetries) {
-          const retryAfter = parseRetryAfter(respHeaders["retry-after"]);
+          const retryAfter = this.honorRetryAfter ? parseRetryAfter(respHeaders["retry-after"]) : null;
           await sleep(retryAfter ?? backoffMs(attempt));
           attempt += 1;
           continue;

@@ -14,19 +14,19 @@ What happens when an MCP client invokes a docpilot tool, layer by layer. The who
 │  docpilot (Node ≥20, single process)        │
 │                                             │
 │  ┌──────────┐  ┌──────────┐  ┌────────────┐ │
-│  │  Tools   │  │  Resolver│  │ Path-based │ │
-│  │  layer   │  │ (registry│  │   search   │ │
-│  │          │  │  +github)│  │ (tree-only)│ │
+│  │  Tools   │  │  Resolver│  │ Docs tree  │ │
+│  │  layer   │  │ (registry│  │ + fetch    │ │
+│  │          │  │  +github)│  │            │ │
 │  └────┬─────┘  └────┬─────┘  └─────┬──────┘ │
 │       │             │              │        │
 │  ┌────▼─────────────▼──────────────▼──────┐ │
 │  │       Fetch Strategy                   │ │
-│  │  REST+ETag → CDN(jsDelivr) → GraphQL   │ │
+│  │  Cache → CDN(jsDelivr) → REST/ETag     │ │
 │  └────────────────┬───────────────────────┘ │
 │                   │                         │
 │  ┌────────────────▼───────────────────────┐ │
-│  │  Content-Addressed Cache               │ │
-│  │  env-paths(docpilot) / blobs / sha256  │ │
+│  │  Snapshot-Addressed Cache              │ │
+│  │  env-paths(docpilot) / refs / blobs    │ │
 │  └────────────────────────────────────────┘ │
 └─────────────────────────────────────────────┘
 ```
@@ -34,20 +34,20 @@ What happens when an MCP client invokes a docpilot tool, layer by layer. The who
 ## Invariants
 
 - **All state is on disk**, under `env-paths('docpilot').cache`. No daemon, no port.
-- **Blobs are content-addressed** by sha256 of bytes. Re-fetches that 304 are free.
+- **Blobs are snapshot-addressed** by sha256 of `(forge, commit-sha, path)`. Repeat reads of the same file at the same commit are local.
 - **A repo is a "snapshot"**: `(forge, owner, repo, commit-sha)`. Refs (`main`, `v15`, `latest`) resolve to a sha at the start of each tool call; downstream operations operate on the sha.
-- **Search is tree-only.** No content index — `search_docs` scores doc paths against the query and returns hits. The tree is cached per commit sha.
+- **Docs navigation is tree-first.** `list_docs` returns the repo's docs tree; the model picks a path and calls `fetch_doc`.
 - **Multi-forge from the start.** GitHub, GitLab, Bitbucket all ship in v0.1; new forges are one file via `defineForge`.
 
 ## Layer by layer
 
 ### 1. MCP transport (`src/server.ts`)
 
-A single Node process speaking JSON-RPC over stdio. Each tool from `src/tools/*` registers with the MCP SDK, plus `notifications/progress` for long operations. No SSE, no HTTP, no shared state across server instances.
+A single Node process speaking JSON-RPC over stdio. Each tool from `src/tools/*` registers with the MCP SDK. No SSE, no HTTP, no shared state across server instances.
 
 ### 2. Tools layer (`src/tools/`)
 
-Each tool is a thin orchestrator: validate input with zod, call into the right combination of resolver / cache / fetch / index, render the result as markdown, return.
+Each tool is a thin orchestrator: validate input with zod, call into the right combination of resolver / cache / fetch, render the result as markdown, return.
 
 Tool descriptions are written so the model **defaults** to calling docpilot when the user mentions a library. No magic incantation.
 
@@ -95,37 +95,35 @@ function resolve_repo(query, hint?):
   else:                                 confidence = 0.55  # ambiguous, markdown picker
 ```
 
-Cache schema is versioned and stores the verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`). A schema bump auto-invalidates older entries on read. The 30-day TTL applies per entry; releases shipped inside that window stale `latestTag` until `force_refresh` or the entry expires.
+The resolution cache stores verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`) and has a 30-day TTL per entry. Releases shipped inside that window can leave `latestTag` stale until `force_refresh` or the entry expires.
 
 ### 4. Fetch strategy (`src/fetch/`)
 
 For each blob we need, docpilot tries paths in this order. Every miss falls through to the next.
 
-| #   | Path                                            | Cost                            | When                                   |
-| --- | ----------------------------------------------- | ------------------------------- | -------------------------------------- |
-| 0   | local cache                                     | free                            | Always tried first                     |
-| 1   | REST `/contents/{path}` with `If-None-Match`    | 0 on 304 (authed) / 1 on change | Every call against an authed user      |
-| 2   | jsDelivr CDN `cdn.jsdelivr.net/gh/o/r@sha/path` | 0 against GH                    | No PAT, or file >100 KB                |
-| 3   | REST tree + blob                                | 1 each                          | Tree walks; binary or very large files |
-| 4   | GraphQL alias batch                             | 1–3 points total                | ≥4 cold-fetch files at once            |
+| #   | Path                                            | Cost                            | When                                                                 |
+| --- | ----------------------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| 0   | local cache                                     | free                            | Always tried first                                                   |
+| 1   | jsDelivr CDN `cdn.jsdelivr.net/gh/o/r@sha/path` | 0 against GH                    | GitHub when CDN is enabled; GitLab when preferred or unauthenticated |
+| 2   | REST `/contents/{path}` with `If-None-Match`    | 0 on 304 (authed) / 1 on change | CDN miss, CDN disabled, or forge has no CDN                          |
 
 Concrete impact for `vercel/next.js@v15`, 50 files:
 
-| Approach                         | API calls                 | Rate-limit impact              |
-| -------------------------------- | ------------------------- | ------------------------------ |
-| Naive REST contents per file     | 50                        | 50 / 5,000                     |
-| ETag REST + 304s after first run | 50 cold, **5 thereafter** | -90% on subsequent sessions    |
-| Tree + CDN                       | 1 tree call + 0 (CDN)     | 1 / 5,000, scales to thousands |
-| GraphQL alias batch              | 1 query, ~2 points        | 2 / 5,000                      |
+| Approach                     | API calls                  | Rate-limit impact                 |
+| ---------------------------- | -------------------------- | --------------------------------- |
+| Naive REST contents per file | 50                         | 50 / 5,000                        |
+| Tree + CDN                   | 0-1 forge API calls        | Scales to thousands of file reads |
+| Warm cache                   | 0                          | Local filesystem reads            |
+| REST fallback with ETag      | 0 on authed 304 / 1 on 200 | Useful when CDN is unavailable    |
 
-For a **second** invocation against the same repo, ETag round-trips alone bring incremental cost to near zero.
+For a **second** invocation against the same commit, the blob and tree caches bring incremental network cost to zero.
 
 ### 5. Cache (`src/cache/`)
 
 ```
 ${env-paths('docpilot').cache}/
 ├── blobs/
-│   └── ab/ab12cdef…           sha256-keyed bytes
+│   └── ab/ab12cdef…           snapshot/path-keyed bytes
 ├── refs/
 │   └── vercel--next.js/
 │       ├── HEAD.json
@@ -133,31 +131,17 @@ ${env-paths('docpilot').cache}/
 ├── resolutions.json           versioned schema (owner/repo + verified metadata)
 ├── repo-meta.json             7-day cache of getRepo() results
 ├── etag-map.json
+├── limiter-state.json
 └── meta.json
 ```
 
-LRU eviction over a configurable cap (default 1 GiB). Single-writer per snapshot via `proper-lockfile`. Reads are lock-free.
+Manual GC evicts old blobs first, then oldest blobs until the configurable cap is met. JSON store writes are guarded with `proper-lockfile`; blob writes are atomic temp-file renames. Reads are lock-free.
 
-Content-addressing means two refs that share files share storage. A new release of a 50 MB repo costs only the diff. Every cached byte is verifiable against its sha.
+Snapshot-addressing means repeated reads at the same commit are direct. Two refs that share identical bytes can still store separate blob entries today.
 
-### 6. Path-based search (`src/search/pathSearch.ts`)
+### 6. Format (`src/format/`)
 
-`search_docs` scores doc paths against the query — no content fetched. The score function combines:
-
-- Filename stem exact match (`middleware` ↔ `middleware.mdx`): +100
-- Filename stem substring match: +40
-- Path-token exact match (slash- / dash- / underscore-split): +20
-- Path-token prefix match: +8
-- Tier penalty: `−4 × docTier(path)` — `llms.txt` (tier 0) outranks deep monorepo READMEs (tier 4-5)
-- Depth penalty: `−2 × (segments − 2)` — prefers `docs/routing.md` over `docs/api/components/x/y.md`
-
-The snippet returned with each hit is a synthesized breadcrumb (`docs · app · api reference · file conventions · middleware`) — readable signal without a content fetch.
-
-For huge repos the only cold-cache cost is the tree fetch (≤2s on next.js, cached per commit sha thereafter).
-
-### 7. Format (`src/format/`)
-
-Markdown renderers — tree, search hits, frontmatter. The MCP spec says `text` blocks are free-form, so we use markdown rather than JSON inside a string. Measured: ≈75% fewer tokens than equivalent JSON for a docs tree.
+Markdown renderers — tree and frontmatter. The MCP spec says `text` blocks are free-form, so we use markdown rather than JSON inside a string. Measured: ≈75% fewer tokens than equivalent JSON for a docs tree.
 
 ## Why this shape
 
@@ -173,7 +157,7 @@ When models weren't agentic, query → top-k was the right shape. Hand the model
 
 Today's clients are agentic. They list a tree, read a path, decide whether it's what they wanted, and call again. The right primitive for _that_ shape isn't "guess what the answer looks like and dump six chunks" — it's "show me the structure of these docs and let me navigate." If a repo was written for a human to navigate (filenames, folder hierarchy, llms.txt, README headings), it's already navigable by an agent. The corpus author has _already_ encoded relevance — embeddings just re-derive a lossier version of it.
 
-So docpilot leans on what's already there. `search_docs` scores paths. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
+So docpilot leans on what's already there. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
 
 ### Why CDN as a first-class fallback?
 
@@ -187,7 +171,7 @@ The boundary is: docpilot does not make a hosted corpus, resolver, ranking model
 
 ### Non-goals (so the surface stays small)
 
-- **No vector store, no embeddings, no semantic search.** See above.
+- **No vector store, no embeddings.** See above.
 - **No hosted docs corpus or hosted resolver as the authority.** See above.
 - **No curated library registry.** If a library has a public repo on a supported forge, docpilot can read it. We're never building a "trusted libraries" list.
 - **No write operations.** No `create_issue`, no `commit`, no `pr`. Adjacent to scope.
@@ -209,12 +193,11 @@ Each helper writes to a module-local `Map<string, Definition>`. Built-ins side-r
 
 - [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts) — MCP entrypoint + CLI dispatch
 - [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/) — MCP tool implementations
-- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts) — REST + CDN + GraphQL fallback chain
+- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts) — local cache + CDN + REST fallback chain
 - [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/) — GitHub / GitLab / Bitbucket adapters
 - [`packages/docpilot/src/resolve/orchestrator.ts`](../../packages/docpilot/src/resolve/orchestrator.ts)
 - [`packages/docpilot/src/lockfile.ts`](../../packages/docpilot/src/lockfile.ts) — manifest detection façade
 - [`packages/docpilot/src/cache/`](../../packages/docpilot/src/cache/)
-- [`packages/docpilot/src/search/`](../../packages/docpilot/src/search/)
 - [`packages/docpilot-core/`](../../packages/docpilot-core/)
 
 If you read those and still have a "wait, how does X work?" question, that's a docs bug. Please file it.

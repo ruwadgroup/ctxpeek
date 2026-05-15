@@ -1,6 +1,6 @@
 # Tools reference
 
-Every docpilot tool returns markdown `text` content unless noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent` validated against an `outputSchema`.
+Every docpilot tool returns markdown `text` content unless noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent`; markdown remains the source of truth across MCP clients.
 
 Input schemas use `zod` via `@modelcontextprotocol/sdk`. Tool descriptions are written so that an agentic client defaults to docpilot when you mention a library — no "use docpilot" magic incantation required.
 
@@ -33,7 +33,7 @@ default: canary
 latest:  v16.2.6
 about:   The React Framework
 
-Use: `list_docs("vercel/next.js@v16.2.6")` or `search_docs("vercel/next.js@v16.2.6", "...")`
+Use: `list_docs("vercel/next.js@v16.2.6")`, then `fetch_doc("vercel/next.js@v16.2.6", "<path>")`
 
 Alternative matches (lower confidence):
 - ChatGPTNextWeb/NextChat — Light and fast AI assistant…
@@ -116,72 +116,6 @@ App Router uses file-system based routing…
 ```
 
 Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus instructions for the partial-read flags.
-
----
-
-## `search_docs(repo, query, opts?)`
-
-Path-based search over a snapshot's doc files. Scores paths against the query (filename match, path-token overlap, doc-tier bonus, depth penalty) and returns the top hits. **No content is fetched** — the only cold cost is the tree, which is cached per commit sha thereafter.
-
-Why no content index? See [the architecture doc](../internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice). Short version: agentic clients navigate trees better than they unpack similarity scores.
-
-**Input**
-
-```ts
-{
-  repo: string     // [forge:]owner/repo[@ref]
-  query: string    // Free-text
-  limit?: number   // Max hits — default 10
-}
-```
-
-**Output**
-
-```markdown
-# Search: "middleware" in vercel/next.js@v15.5.4  (3 hits, 1.06s)
-
-1. docs/01-app/03-api-reference/03-file-conventions/middleware.mdx  · score 86.0
-   > docs · app · api reference · file conventions · middleware
-   `fetch_doc("vercel/next.js@v15.5.4", "docs/01-app/03-api-reference/03-file-conventions/middleware.mdx")`
-
-2. docs/02-pages/04-api-reference/02-file-conventions/middleware.mdx  · score 86.0
-   …
-```
-
-The snippet under each hit is a readable breadcrumb synthesized from path segments — gives the planner enough signal to pick the right file before calling `fetch_doc`.
-
----
-
-## `search_all(query, opts?)`
-
-Fan-out path-based search across many repos in one call. Same scoring as `search_docs`, results merged and ranked by score across repos.
-
-**Input**
-
-```ts
-{
-  query: string                // Free-text
-  repos?: string[]             // Explicit list of repo specs
-  from_lockfile?: boolean      // Resolve every direct dep in the cwd lockfile and search them — default false
-  limit_per_repo?: number      // Per-repo hit cap — default 3
-  total_limit?: number         // Cross-repo hit cap — default 15
-}
-```
-
-**Output**
-
-```markdown
-# search_all: "server actions"  (9 hits across 3 repos, 0.21s)
-
-## vercel/next.js@v15.0.0
-
-1. docs/01-app/01-getting-started/12-server-actions.mdx  · score 14.2
-   > Server Actions are async functions that run on the server…
-   `fetch_doc(...)`
-
-## drizzle-team/drizzle-orm@v0.30.1
-…
-```
 
 ---
 
@@ -278,7 +212,6 @@ Diagnostic.
 Location:     /Users/you/Library/Caches/docpilot
 Blobs:        128.4M
 Refs/trees:   1.1M
-Indexes:      18.2M
 Cap:          1024.0M (gc_days=14)
 ```
 

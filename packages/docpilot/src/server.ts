@@ -37,8 +37,6 @@ import {
   buildPeekTool,
   buildRelatedReposTool,
   buildResolveRepoTool,
-  buildSearchAllTool,
-  buildSearchDocsTool,
   cacheStatusInput,
   changelogInput,
   fetchDocInput,
@@ -48,19 +46,17 @@ import {
   peekInput,
   relatedReposInput,
   resolveRepoInput,
-  searchAllInput,
-  searchDocsInput,
   type ToolContext,
 } from "./tools/index.js";
 
 export const DOCPILOT_VERSION = "0.1.0";
 
-const USAGE = `docpilot ${DOCPILOT_VERSION} — local-first MCP server for GitHub-hosted docs
+const USAGE = `docpilot ${DOCPILOT_VERSION} — local-first MCP server for repo-hosted docs
 
 Usage:
   docpilot                          Start the MCP stdio server (default)
   docpilot doctor                   Environment self-check
-  docpilot warm <spec...>           Pre-pull trees + indexes for repos or a recipe
+  docpilot warm <spec...>           Pre-pull refs + doc trees for repos or a recipe
   docpilot recipe install <path>    Pre-warm cache from a recipe (alias for "warm")
   docpilot cache status [repo]      Print cache stats
   docpilot cache gc                 Run garbage collection
@@ -84,7 +80,10 @@ export async function buildContext(argv: ReadonlyArray<string> = [], logger?: Lo
 
   const limiter = new RateLimiter(config.fetch.concurrentMax, config.fetch.secondaryBudgetPerMin);
   await limiter.hydrate(config.paths.limiterStateFile);
-  const http = new HttpClient({ userAgent: `docpilot/${DOCPILOT_VERSION}` });
+  const http = new HttpClient({
+    userAgent: `docpilot/${DOCPILOT_VERSION}`,
+    honorRetryAfter: config.fetch.honorRetryAfter,
+  });
   const repoMeta = new RepoMetaCache(config.paths.repoMetaFile);
   const rest = new GithubRestClient({
     token: config.auth.token,
@@ -132,7 +131,7 @@ export async function buildContext(argv: ReadonlyArray<string> = [], logger?: Lo
   };
 }
 
-const SERVER_INSTRUCTIONS = `Fetch version-pinned docs for any library, framework, or open-source package. Flow: \`resolve_repo\` → \`search_docs\` (path-based, fast) → \`fetch_doc\`. Do not grep \`node_modules\` or shell out to \`npm view\`/\`pip show\` for versions — omit the ref and docpilot pins to the default branch. Skip for general programming questions unrelated to a specific library.`;
+const SERVER_INSTRUCTIONS = `Fetch version-pinned docs for any library, framework, or open-source package. Flow: \`resolve_repo\` → \`list_docs\` → \`fetch_doc\`. Use \`list_docs\` to inspect the repo's docs tree, then fetch the specific file path. Do not grep \`node_modules\` or shell out to \`npm view\`/\`pip show\` for versions — omit the ref and docpilot pins to the default branch. Skip for general programming questions unrelated to a specific library.`;
 
 export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<void> {
   const ctx = await buildContext(argv);
@@ -169,12 +168,6 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
     handler: buildFetchDocTool(ctx),
   });
 
-  registerSimpleTool(server, "search_docs", searchDocsInput, {
-    description:
-      "Path-based search across a library's doc files. Fast (~1s, no content fetched). Best first call for 'how do I X with Y' questions — follow up with `fetch_doc` on a result path.",
-    handler: buildSearchDocsTool(ctx),
-  });
-
   registerSimpleTool(server, "peek", peekInput, {
     description: "First N lines of a doc file. Cheaper than `fetch_doc` for a quick look.",
     handler: buildPeekTool(ctx),
@@ -205,16 +198,10 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
     handler: buildGetIssuesTool(ctx),
   });
 
-  registerSimpleTool(server, "search_all", searchAllInput, {
-    description:
-      "Fan-out search across multiple repos. Pass `repos: [...]` or `from_lockfile: true` to use the cwd's deps.",
-    handler: buildSearchAllTool(ctx),
-  });
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
   ctx.logger.info("docpilot: MCP stdio server ready", {
-    tools: 11,
+    tools: 9,
     version: DOCPILOT_VERSION,
   });
   await waitForServerClose(server);

@@ -38,17 +38,15 @@ If you see "GitHub: API rate limit exceeded for {ip}", you're running anonymous 
 1. Set `GITHUB_TOKEN` (jumps to 5,000/hr; ETag 304s become free).
 2. Wait an hour. The CDN-served path keeps working in the meantime.
 
-Check your remaining budget any time:
+Inspect the local cache state any time:
 
 ```bash
 npx -y docpilot cache status
 ```
 
-The status output includes a "GitHub remaining: N/5000" line.
-
 ## "Library not found" from `resolve_repo`
 
-By design, docpilot returns `Ambiguous` (top-5 candidates) rather than guessing. If you got `NotFound`, the registry probes (npm, PyPI, crates, RubyGems, …) and a GitHub `/search/repositories` query all came back empty.
+By design, docpilot returns `Ambiguous` (top-5 candidates) rather than guessing. If you got `NotFound`, the registry probes (npm, PyPI, crates, Go, RubyGems, Packagist, Hex) and a GitHub `/search/repositories` query all came back empty.
 
 Bypass the resolver: pass `owner/repo` directly. docpilot only resolves fuzzy names — canonical specs go straight through.
 
@@ -79,8 +77,7 @@ rm -rf ~/.cache/docpilot           # Linux
 
    ```bash
    npx -y docpilot
-   # Should print "docpilot: server skeleton — no tools registered yet"
-   # and wait on stdin.
+   # Should start the stdio MCP server and wait on stdin.
    ```
 
 3. If you see no output, your shell or PATH is the problem (see Windows fix above).

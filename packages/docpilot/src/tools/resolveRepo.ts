@@ -235,7 +235,7 @@ function renderResolved(
   // specific version, so it doesn't waste a round-trip on the default branch
   // first then re-resolve to a tag.
   const refHint = best.latestTag ? `@${best.latestTag}` : "";
-  lines.push(`Use: \`list_docs("${slug}${refHint}")\` or \`search_docs("${slug}${refHint}", "...")\``);
+  lines.push(`Use: \`list_docs("${slug}${refHint}")\`, then \`fetch_doc("${slug}${refHint}", "<path>")\``);
   if (installSuggestionLine) {
     lines.push("");
     lines.push(installSuggestionLine);
@@ -288,7 +288,7 @@ function renderNotFound(query: string): string {
   return [
     `# No repo found for "${query}"`,
     "",
-    "Tried registry probes (npm/PyPI/crates/go/rubygems) and GitHub repo search; nothing matched.",
+    "Tried registry probes (npm/PyPI/crates/go/RubyGems/Packagist/Hex) and GitHub repo search; nothing matched.",
     "",
     "If you know the canonical path, call this tool again with `owner/repo` directly,",
     'or call `list_docs("owner/repo")` if you\'re sure of the slug.',

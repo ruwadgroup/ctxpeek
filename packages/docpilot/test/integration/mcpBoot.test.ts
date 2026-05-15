@@ -81,7 +81,7 @@ describe("MCP boot", () => {
       send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
       const list = await waitForResponse(2, 10_000);
 
-      expect(list.result?.tools?.length).toBe(11);
+      expect(list.result?.tools?.length).toBe(9);
       const names = (list.result?.tools ?? []).map((t) => t.name).sort();
       expect(names).toEqual([
         "cache_status",
@@ -93,8 +93,6 @@ describe("MCP boot", () => {
         "peek",
         "related_repos",
         "resolve_repo",
-        "search_all",
-        "search_docs",
       ]);
     } finally {
       child.kill();

@@ -8,7 +8,7 @@ The cache is the difference between docpilot feeling instant and docpilot feelin
 ${env-paths('docpilot').cache}/
 ├── blobs/
 │   └── ab/
-│       └── ab12cdef…             raw bytes, sha256-keyed
+│       └── ab12cdef…             raw bytes, keyed by snapshot/path hash
 ├── refs/
 │   └── vercel--next.js/
 │       ├── HEAD.json             { ref, sha, etag, fetched_at }
@@ -17,14 +17,15 @@ ${env-paths('docpilot').cache}/
 ├── resolutions.json              versioned schema; owner/repo + verified metadata
 ├── repo-meta.json                7-day cache of getRepo() (stars, defaultBranch, latestTag)
 ├── etag-map.json                 path@sha → ETag
-└── meta.json                     schema version, last-gc, …
+├── limiter-state.json            persisted rate-limit/degraded state
+└── meta.json                     reserved cache metadata
 ```
 
-## Content-addressed blobs
+## Snapshot-addressed blobs
 
-Blobs are keyed by `sha256(bytes)`. Two refs of the same repo share files (most do), so the blob store is a deduplicating layer: a new release of a 50 MB repo costs only the diff.
+The main blob cache is keyed by `sha256(forge:commit_sha:path)`, not by content hash. That makes the cache lookup a pure function of the resolved snapshot and requested path.
 
-Every read verifies the bytes match the key. A corrupted or truncated write is caught on the next read; the entry is evicted and re-fetched.
+The tradeoff is intentional for the current baseline: identical bytes across two refs can be duplicated, but reads are direct and there is no extra indirection layer to maintain.
 
 The on-disk layout uses two-character bucket directories (like git's loose-object store) to keep directory sizes bounded for filesystems that degrade past ~10k entries per directory.
 
@@ -32,25 +33,24 @@ The on-disk layout uses two-character bucket directories (like git's loose-objec
 
 A `RefStore` entry maps `(owner, repo, ref)` → `{ sha, etag, fetched_at }`. Refs are never the source of truth for content — they are pointers to commit shas, which are the actual snapshot identifiers downstream.
 
-Symbolic refs (`main`, `canary`) carry a short TTL (default 5 minutes) on top of the ETag. Tag refs (`v15.0.0`) are immutable on GitHub and cached forever. Sha refs are obviously immutable.
+Ref records are cached for 24 hours by `resolveSnapshot`. Tree records are keyed by the resolved commit sha and reused until GC removes them.
 
 ## ETags
 
 `etag-map.json` is a flat map from `{owner}/{repo}/{path}@{sha}` to its ETag. Used by Step 1 of the [fetch strategy](fetch-strategy.md) to send `If-None-Match` on every conditional GET.
 
-Authenticated 304 responses do **not** count against the primary rate limit. This is why an authenticated docpilot user effectively has unlimited capacity for repeat reads.
+Authenticated 304 responses do **not** count against the primary rate limit. The hot path prefers local cache hits, but ETags still reduce cost when docpilot falls back to REST and has a previous validator.
 
 ## GC
 
-- LRU eviction over a configurable cap (default 1 GiB)
-- Snapshots not accessed in 14 days evicted first
-- Resolutions older than 30 days re-resolved on next use
+- Blob entries older than the configured age (default 14 days) are removed first.
+- If the blob cache still exceeds the configured cap (default 1 GiB), oldest remaining blobs are removed until it fits.
+- Ref/tree files older than twice the configured age are removed.
+- Resolutions older than 30 days are re-resolved on next use.
 
-GC runs:
+GC currently runs manually:
 
-- On startup if the last GC was more than 24 hours ago
-- Eagerly when the cache exceeds the cap
-- Manually via `docpilot cache gc`
+- `docpilot cache gc`
 
 ## Concurrency
 
@@ -60,10 +60,4 @@ A failed/abandoned writer (process killed mid-write) leaves a stale lock. `prope
 
 ## Migration
 
-`meta.json` carries a schema version. On startup, if the on-disk schema is older than the binary's expected schema:
-
-- **Patch bump (X.Y.Z → X.Y.Z+1):** in-place migration if any
-- **Minor bump (X.Y → X.Y+1):** `meta.json` is upgraded; everything else compatible
-- **Major bump (X → X+1):** print a warning; recommend `docpilot cache nuke`
-
-We have not had to do a major bump. The intent is to go from now to v1.0 without one.
+The current cache files are JSON and blob files with simple versioned records where needed. No automatic cache migration path has shipped yet; incompatible future changes should either tolerate old files or document when users need to run `docpilot cache gc` or remove the cache directory.

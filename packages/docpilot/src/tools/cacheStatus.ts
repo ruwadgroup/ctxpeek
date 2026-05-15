@@ -14,7 +14,6 @@ export function buildCacheStatusTool(ctx: ToolContext) {
   return async (input: CacheStatusInput): Promise<string> => {
     const blobsBytes = await ctx.blobs.size();
     const refsBytes = await dirSize(ctx.config.paths.refs);
-    const indexBytes = await dirSize(ctx.config.paths.indexes);
 
     const lines: string[] = [];
     lines.push(`# docpilot cache`);
@@ -22,7 +21,6 @@ export function buildCacheStatusTool(ctx: ToolContext) {
     lines.push(`Location:     ${ctx.config.paths.cache}`);
     lines.push(`Blobs:        ${formatBytes(blobsBytes)}`);
     lines.push(`Refs/trees:   ${formatBytes(refsBytes)}`);
-    lines.push(`Indexes:      ${formatBytes(indexBytes)}`);
     lines.push(
       `Cap:          ${formatBytes(ctx.config.cache.maxSizeBytes)} (gc_days=${ctx.config.cache.gcDays})`,
     );

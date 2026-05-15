@@ -19,8 +19,8 @@ docpilot treats documentation as a git snapshot: `[forge:]owner/repo[@ref][#subp
 | Cost                    | Free, your rate limits                          | Free tier + paid tiers                           | Free                   | Free                 |
 | Response format         | Markdown by default                             | JSON-flavored text payloads                      | Markdown               | Markdown             |
 | Token efficiency        | Tree + frontmatter; self-reports cost           | Larger; users report bloat                       | Medium                 | Tight                |
-| Offline cache           | Yes, content-addressed                          | No (hosted)                                      | No (hosted)            | Partial              |
-| Search shape            | Path-based (agentic; tree → path → file)        | Top-k snippets from a hosted index               | URL-based              | Per-source index     |
+| Offline cache           | Yes, snapshot-addressed                         | No (hosted)                                      | No (hosted)            | Partial              |
+| Navigation shape        | Tree → path → file                              | Top-k snippets from a hosted index               | URL-based              | Per-source index     |
 | Fuzzy name resolution   | npm/PyPI/crates first, GitHub last              | Internal trust-scored registry                   | URL-based              | N/A                  |
 | Monorepo subpath        | First-class `#subpath`                          | Limited                                          | Limited                | N/A                  |
 | Code search             | Out of scope (use github-mcp-server)            | Code snippets included                           | Code search            | No                   |
@@ -48,7 +48,6 @@ docpilot's natural flow is:
 
 ```text
 list_docs("vercel/next.js@v15.0.0")
-search_docs("vercel/next.js@v15.0.0", "routing")
 fetch_doc("vercel/next.js@v15.0.0", "docs/.../routing.mdx")
 get_changes("vercel/next.js", path: "docs/.../routing.mdx", from_ref: "v14.2.0", to_ref: "v15.0.0")
 ```
@@ -61,6 +60,6 @@ Privacy, accounts, and local caching are real benefits, but they are downstream 
 
 - **A source-code-understanding tool.** For symbol-level navigation use [`github-mcp-server`](https://github.com/github/github-mcp-server) or [`deepwiki`](https://deepwiki.com).
 - **A hosted docs corpus.** Optional immutable mirrors are compatible with the design; a hosted resolver/index that decides which docs the model sees is not.
-- **A semantic search engine.** `search_docs` scores doc paths, `list_docs` returns the tree — agentic clients navigate from there. Vector retrieval re-derives relevance the corpus author already encoded in filenames, folders, and llms.txt; we trust that signal instead. Full rationale: [Why no semantic search](internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
+- **A semantic search engine.** `list_docs` returns the tree and agentic clients navigate from there. Vector retrieval re-derives relevance the corpus author already encoded in filenames, folders, and llms.txt; we trust that signal instead. Full rationale: [Why no semantic search](internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
 - **A curated library registry.** If a library has a public repo on a supported forge, docpilot can read it.
 - **A read-write tool.** No `create_issue`, no `commit`, no `pr`. Adjacent to scope.

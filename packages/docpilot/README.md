@@ -33,8 +33,6 @@ src/
 │   ├── resolveRepo.ts
 │   ├── listDocs.ts
 │   ├── fetchDoc.ts
-│   ├── searchDocs.ts
-│   ├── searchAll.ts
 │   ├── peek.ts
 │   ├── getChanges.ts
 │   ├── changelog.ts
@@ -42,7 +40,7 @@ src/
 │   ├── getIssues.ts
 │   ├── cacheStatus.ts
 │   └── context.ts                     // Shared tool context + Snapshot resolver
-├── fetch/                             // REST + ETag → CDN → GraphQL strategy
+├── fetch/                             // Cache → CDN → REST/ETag strategy
 │   ├── strategy.ts
 │   ├── githubRest.ts
 │   ├── githubGraphql.ts
@@ -68,10 +66,8 @@ src/
 │       └── (same layout as above)
 ├── cache/                             // Content-addressed disk cache
 │   └── blobs.ts, refs.ts, etag.ts, gc.ts, repoMeta.ts
-├── search/                            // Path-based search scoring
-│   └── pathSearch.ts
 ├── format/                            // Markdown renderers
-│   └── tree.ts, frontmatter.ts, searchMd.ts, docsPaths.ts
+│   └── tree.ts, frontmatter.ts, docsPaths.ts
 └── util/                              // HTTP, paths, sha, logger, promise helpers
 ```
 

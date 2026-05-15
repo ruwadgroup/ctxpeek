@@ -79,14 +79,19 @@ npx -y docpilot doctor
 
 Expected output (abridged):
 
-```
-docpilot doctor
-  ok    node 20.18.0 on darwin-arm64
-  ok    npx resolvable from spawn context
-  ok    GITHUB_TOKEN set, scope: Contents:Read
-  ok    cache dir writable: /Users/you/Library/Caches/docpilot
-  ok    cdn.jsdelivr.net reachable
-  ok    api.github.com reachable, 4983/5000 remaining
+```text
+# docpilot doctor
+
+Platform: darwin 24.x.x / Node 20.18.0
+
+✓ Node.js — 20.18.0
+✓ npx on PATH — /usr/local/bin/npx
+✓ Cache dir writable — /Users/you/Library/Caches/docpilot
+✓ GitHub token — from $GITHUB_TOKEN — login=you, scopes=(fine-grained PAT) — public repos only
+✓ api.github.com reachable
+✓ cdn.jsdelivr.net reachable
+
+Overall: ok
 ```
 
 If you see warnings or failures, see [troubleshooting](troubleshooting.md).
@@ -103,7 +108,7 @@ Behind the scenes the model will call:
 resolve_repo("drizzle orm")
   → drizzle-team/drizzle-orm
 
-list_docs("drizzle-team/drizzle-orm@latest", { include_examples: true })
+list_docs("drizzle-team/drizzle-orm@v0.30.1", { include_examples: true })
   → markdown tree highlighting examples/with-next-server-actions/
 
 fetch_doc("drizzle-team/drizzle-orm@v0.30.1",

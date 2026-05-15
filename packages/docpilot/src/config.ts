@@ -171,7 +171,7 @@ export async function loadConfig(
       ghAccount,
     },
     resolve: {
-      ecosystems: (merged.resolve?.ecosystems ?? ["npm", "pypi", "crates", "go", "rubygems"]) as Ecosystem[],
+      ecosystems: (merged.resolve?.ecosystems ?? [...ECOSYSTEMS]) as Ecosystem[],
       githubSearchFallback: merged.resolve?.github_search_fallback ?? true,
     },
     experiments: {

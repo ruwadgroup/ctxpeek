@@ -60,4 +60,4 @@ A ref → sha resolution is performed once at the start of each tool call. The r
 
 The single-string form fits a slash command, a chat message, or a tool input. It's what people already type when referring to repos ("`vercel/next.js`") — no learning curve.
 
-It also keeps version intent attached to every tool call. `list_docs`, `search_docs`, `fetch_doc`, `get_changes`, and `changelog` all speak the same ref-native language, so an agent can move from "show me Next 15 routing docs" to "compare that file with Next 14" without switching systems.
+It also keeps version intent attached to every tool call. `list_docs`, `fetch_doc`, `get_changes`, and `changelog` all speak the same ref-native language, so an agent can move from "show me Next 15 routing docs" to "compare that file with Next 14" without switching systems.

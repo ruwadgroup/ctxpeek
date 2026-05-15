@@ -73,7 +73,7 @@ import swift from "./swift.js";
 export const BUILT_IN_LOCKFILE_PARSERS = [/* ... */, swift] as const;
 ```
 
-`detectManifests`, `installSuggestion`, and `search_all`'s `from_lockfile: true` pick up the new ecosystem automatically.
+`detectManifests`, `installSuggestion`, and `resolve_repo`'s manifest-aware preflight pick up the new ecosystem automatically.
 
 ---
 

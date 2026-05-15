@@ -63,7 +63,7 @@ export class RepoMetaCache {
   /** Return the cached latestTag if its independent TTL hasn't expired. */
   async getLatestTag(forge: string, owner: string, repo: string): Promise<string | null | undefined> {
     const rec = await this.get(forge, owner, repo);
-    if (!rec || !rec.latestTagFetchedAt) return undefined;
+    if (!rec?.latestTagFetchedAt) return undefined;
     if (Date.now() - Date.parse(rec.latestTagFetchedAt) > LATEST_TAG_TTL_MS) return undefined;
     return rec.latestTag;
   }
