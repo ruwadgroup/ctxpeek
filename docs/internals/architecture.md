@@ -164,7 +164,13 @@ A few decisions worth calling out:
 
 **Why an IR-free design?** Tools render markdown directly. Adding an IR layer would add abstraction without enabling polyglot clients (the MCP transport already isolates us). When we need structured output for chaining (e.g., `resolve_repo`'s `structuredContent`), it lives next to the markdown, validated by the same zod schema.
 
-**Why path-only search instead of a content index?** Most "how do I X with library Y" questions are answerable from a file named after the topic (`middleware.mdx`, `routing.md`, `server-actions.mdx`). Path scoring + the tree (cached per sha) returns in ~1s on any repo, with zero per-file fetches. Content-based search would multiply latency by orders of magnitude for the common case — when path search misses, the model can list and fetch directly.
+**Why no semantic search or vector store? A deliberate choice.**
+
+When models weren't agentic, query → top-k was the right shape: hand the model a relevance-ranked slice because it couldn't go fetch more itself. A vector store solved that — map the corpus into similarity space, return the nearest chunks to the user's question, hope a few of them were on-topic.
+
+Today's clients are agentic. They list a tree, read a path, decide whether it's what they wanted, and call again. The right primitive for _that_ shape isn't "guess what the answer looks like and dump six chunks" — it's "show me the structure of these docs and let me navigate it." If a repo was written for a human to navigate (filenames, folder hierarchy, llms.txt, README headings), it's already navigable by an agent. The corpus author has _already_ encoded relevance — embeddings just re-derive a lossier version of it.
+
+So docpilot leans on what's already there. `search_docs` scores paths. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
 
 **Why CDN as a first-class fallback?** Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous docpilot users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
 

@@ -34,6 +34,6 @@ These are not strictly substitutes — running docpilot alongside Context7 or Re
 
 - A source-code-understanding tool. For symbol-level navigation, use [`github-mcp-server`](https://github.com/github/github-mcp-server) or [`deepwiki`](https://deepwiki.com).
 - A hosted SaaS. Architectural decision; if we run a server, we become Context7.
-- A content search engine. `search_docs` scores doc paths — fast on any repo, but it relies on libraries naming files after topics (`middleware.mdx`, `routing.md`). For content-only queries the model lists and fetches directly.
+- A semantic search engine. `search_docs` scores doc paths and `list_docs` returns the tree — agentic clients navigate from there. Vector retrieval re-derives relevance the corpus author already encoded in filenames, folders, and llms.txt; we trust that signal instead. Rationale: [Why no semantic search](internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
 - A curated library registry. We will never maintain a "trusted libraries" list. If a library has a public GitHub repo, docpilot can read it.
 - A read-write tool. No `create_issue`, no `commit`, no `pr`. Adjacent to scope.
