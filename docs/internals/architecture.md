@@ -14,9 +14,9 @@ This is what happens when an MCP client invokes a docpilot tool. The parts are s
 │  docpilot (Node ≥20, single process)        │
 │                                             │
 │  ┌──────────┐  ┌──────────┐  ┌────────────┐ │
-│  │  Tools   │  │  Resolver│  │  Indexer   │ │
-│  │  layer   │  │ (registry│  │ (minisearch│ │
-│  │          │  │  +github)│  │   BM25+)   │ │
+│  │  Tools   │  │  Resolver│  │ Path-based │ │
+│  │  layer   │  │ (registry│  │   search   │ │
+│  │          │  │  +github)│  │ (tree-only)│ │
 │  └────┬─────┘  └────┬─────┘  └─────┬──────┘ │
 │       │             │              │        │
 │  ┌────▼─────────────▼──────────────▼──────┐ │
@@ -36,7 +36,7 @@ This is what happens when an MCP client invokes a docpilot tool. The parts are s
 - **All state is on disk**, under `env-paths('docpilot').cache`. No daemon, no port.
 - **Blobs are content-addressed** by sha256 of bytes. Re-fetches that 304 are free.
 - **A repo is a "snapshot"**: `(owner, repo, commit-sha)`. Refs (`main`, `v15`, `latest`) resolve to a sha at the start of each tool call; downstream operations operate on the sha.
-- **The index is per snapshot.** Re-indexing is incremental (MiniSearch supports add/remove).
+- **Search is tree-only.** No content index — `search_docs` scores doc paths against the query and returns hits. The tree is cached per commit sha; the score function is O(N) over doc paths.
 
 ## Layer by layer
 
@@ -58,8 +58,16 @@ Turns fuzzy names into canonical `owner/repo`. Algorithm:
 function resolve_repo(query, hint?):
   q = normalize(query)
   if q is "owner/repo" shape:           return verify_on_github(q)
-  if cache.has(q):                      return cache.get(q)
-  candidates = race([                   # parallel, 250ms each
+
+  # Manifest preflight: if the cwd has a lockfile and the query matches a
+  # dep by name or scope (e.g. "autotranslate" → @autotranslate/cli),
+  # resolve that exact package instead of the bare query.
+  manifest_hit = find_manifest_match(q)
+  if manifest_hit:                      q = manifest_hit.name
+
+  if cache.has(q) and not force_refresh: return cache.get(q)
+
+  candidates = race([                   # parallel, ~1.5s each, with GH search side-channel
     npm registry,
     pypi,
     crates.io,
@@ -68,14 +76,25 @@ function resolve_repo(query, hint?):
     packagist,
     hex,
   ])
-  if any returns github.com URL:        return that
-  results = github /search/repositories (30/min separate bucket)
+
+  if any returns github.com URL:
+    winner = verify_and_enrich(that)    # getRepo → fills stars + defaultBranch + latestTag
+    if winner:                          return winner + gh_search_alternatives
+
+  # No registry winner: GH /search/repositories (30/min separate bucket)
+  results = github_search(q)
   if no results:                        return NotFound
-  if top.stars > 10 × #2.stars:         return top
-  return Ambiguous(top_5)               # markdown list, model picks
+
+  top = sorted_by_stars(results)[0]
+  latest_tag = tryGetLatestTag(top)     # one /releases/latest call
+
+  dominant = !second || top.stars > 10 × second.stars
+  if dominant:                          confidence = 0.85
+  elif top.stars >= 5000:               confidence = 0.9   # popular-enough → trust it
+  else:                                 confidence = 0.55  # ambiguous, markdown picker
 ```
 
-When ambiguous, the result is markdown with the top 5 candidates and lets the model (or human) pick. Auto-picking by stars alone produced bad results in pilot testing (e.g., `"vue"` → `vuejs/vue` legacy v2 when user wanted `vuejs/core`).
+Cache schema is versioned and stores the verified GitHub metadata (`stars`, `defaultBranch`, `latestTag`, `confidence`). A schema bump auto-invalidates older entries on read. The 30-day TTL applies per entry; releases that ship inside that window stale `latestTag` until `force_refresh` or the entry expires.
 
 ### 4. Fetch strategy (`src/fetch/`)
 
@@ -110,9 +129,8 @@ ${env-paths('docpilot').cache}/
 │   └── vercel--next.js/
 │       ├── HEAD.json
 │       └── tree-{sha}.json
-├── indexes/
-│   └── {owner}--{repo}--{sha}.minisearch
-├── resolutions.json
+├── resolutions.json           versioned schema (owner/repo + verified metadata)
+├── repo-meta.json             7-day cache of getRepo() results
 ├── etag-map.json
 └── meta.json
 ```
@@ -121,16 +139,20 @@ LRU eviction over a configurable cap (default 1 GiB). Single-writer per snapshot
 
 Content-addressing means two refs that share files share storage. A new release of a 50 MB repo costs only the diff. Every cached byte is verifiable against its sha.
 
-### 6. Search index (`src/search/`)
+### 6. Path-based search (`src/search/pathSearch.ts`)
 
-`minisearch` 7.x with BM25+. Per file:
+`search_docs` scores doc paths against the query — no content fetched. The score function combines:
 
-- `title` — first `# heading` or filename stem
-- `headings` — concatenated `## …`
-- `body` — full text, code blocks weighted 0.5×
-- `path` — boost 3× for slug matches
+- Filename stem exact match (`middleware` ↔ `middleware.mdx`): +100
+- Filename stem substring match: +40
+- Path-token exact match (slash- / dash- / underscore-split): +20
+- Path-token prefix match: +8
+- Tier penalty: `−4 × docTier(path)` — `llms.txt` (tier 0) outranks deep monorepo READMEs (tier 4-5)
+- Depth penalty: `−2 × (segments − 2)` — prefers `docs/routing.md` over `docs/api/components/x/y.md`
 
-Built lazily on first `search_docs` call for a snapshot; persisted with `MiniSearch.toJSON()` for fast warm starts. Per-snapshot footprint: typically 5–15% of source-text size.
+The snippet returned with each hit is a synthesized breadcrumb (`docs · app · api reference · file conventions · middleware`) — readable signal without a content fetch.
+
+For huge repos the only cold-cache cost is the tree fetch (≤2s on next.js, cached per commit sha thereafter).
 
 ### 7. Format (`src/format/`)
 
@@ -142,7 +164,7 @@ A few decisions worth calling out:
 
 **Why an IR-free design?** Tools render markdown directly. Adding an IR layer would add abstraction without enabling polyglot clients (the MCP transport already isolates us). When we need structured output for chaining (e.g., `resolve_repo`'s `structuredContent`), it lives next to the markdown, validated by the same zod schema.
 
-**Why MiniSearch instead of a vector store?** BM25+ is good enough for docs corpora typically ≤10 MB per repo. Vectors are a v0.3+ opt-in experiment — when added, they will be local (`transformers.js`), never sent anywhere.
+**Why path-only search instead of a content index?** Most "how do I X with library Y" questions are answerable from a file named after the topic (`middleware.mdx`, `routing.md`, `server-actions.mdx`). Path scoring + the tree (cached per sha) returns in ~1s on any repo, with zero per-file fetches. Content-based search would multiply latency by orders of magnitude for the common case — when path search misses, the model can list and fetch directly.
 
 **Why CDN as a first-class fallback?** Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous docpilot users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
 

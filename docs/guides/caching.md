@@ -25,9 +25,8 @@ ${cache}/
 │       ├── HEAD.json             { ref, sha, etag, fetched_at }
 │       ├── v15.0.0.json
 │       └── tree-{sha}.json       cached tree, compact
-├── indexes/
-│   └── vercel--next.js--{sha}.minisearch
-├── resolutions.json              fuzzy-name → canonical owner/repo
+├── resolutions.json              fuzzy-name → canonical owner/repo (versioned)
+├── repo-meta.json                7-day cache of GitHub repo metadata
 ├── etag-map.json                 path@sha → ETag
 └── meta.json                     schema version, last-gc, …
 ```

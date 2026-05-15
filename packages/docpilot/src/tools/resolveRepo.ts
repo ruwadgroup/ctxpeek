@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { z } from "zod";
 import type { Ecosystem } from "../config.js";
-import { detectManifests, installSuggestion, type LockedDep } from "../lockfile.js";
+import { type DetectedManifest, detectManifests, installSuggestion, type LockedDep } from "../lockfile.js";
 import { type ResolutionCandidate, resolve } from "../resolve/orchestrator.js";
 import type { ToolContext } from "./context.js";
 
@@ -19,6 +19,7 @@ export type ResolveRepoStructured = {
   readonly source: string;
   readonly stars: number | null;
   readonly default_branch: string | null;
+  readonly latest_tag: string | null;
   readonly confidence: number;
   readonly alternatives: ReadonlyArray<{
     owner: string;
@@ -34,14 +35,48 @@ export type ResolveRepoOutput = {
 
 export function buildResolveRepoTool(ctx: ToolContext) {
   return async (input: ResolveRepoInput): Promise<ResolveRepoOutput> => {
-    const ecosystems = input.ecosystem ? [input.ecosystem] : ctx.config.resolve.ecosystems;
-    const result = await resolve({ rest: ctx.rest, http: ctx.http, logger: ctx.logger }, input.query, {
-      ecosystems,
-      githubSearchFallback: ctx.config.resolve.githubSearchFallback,
-      cacheFile: ctx.config.paths.resolutionsFile,
-      ...(input.force_refresh ? { forceRefresh: true } : {}),
-    });
+    const defaultEcosystems = input.ecosystem ? [input.ecosystem] : ctx.config.resolve.ecosystems;
 
+    // Manifest-aware preflight: if the user is in a project that depends on
+    // a package whose name (or scope) matches the query, use the exact
+    // package name as the resolver input. This is the difference between
+    // "autotranslate" → `eJayYoung/autoTranslate` (random npm package) and
+    // "autotranslate" → `tamimbinhakim/autotranslate` (the one the user
+    // actually imports as `@autotranslate/*`).
+    const manifestHit = input.ecosystem ? null : await findManifestMatch(input.query).catch(() => null);
+    const resolveQuery = manifestHit?.depName ?? input.query;
+    const resolveEcosystems = manifestHit ? [manifestHit.ecosystem] : defaultEcosystems;
+
+    const raw = await resolve(
+      { rest: ctx.rest, graphql: ctx.graphql, http: ctx.http, logger: ctx.logger },
+      resolveQuery,
+      {
+        ecosystems: resolveEcosystems,
+        githubSearchFallback: ctx.config.resolve.githubSearchFallback,
+        cacheFile: ctx.config.paths.resolutionsFile,
+        ...(input.force_refresh ? { forceRefresh: true } : {}),
+      },
+    );
+
+    if (!raw.best) {
+      return {
+        markdown: renderNotFound(input.query),
+        structured: null,
+      };
+    }
+
+    // `latestTag` is no longer fetched eagerly in the resolver hot path; do
+    // it here lazily through the 1-day cache. First call per repo per day
+    // costs one /releases/latest hit, subsequent calls are free.
+    const result = raw.best.latestTag
+      ? raw
+      : {
+          ...raw,
+          best: {
+            ...raw.best,
+            latestTag: await ctx.rest.getLatestTag(raw.best.owner, raw.best.repo).catch(() => null),
+          },
+        };
     if (!result.best) {
       return {
         markdown: renderNotFound(input.query),
@@ -50,10 +85,19 @@ export function buildResolveRepoTool(ctx: ToolContext) {
     }
 
     const installSuggestionLine = await offerToInstall(input.query, result.best);
+    const manifestNote = manifestHit
+      ? `> Matched **${manifestHit.depName}** from your ${path.basename(manifestHit.manifestFile)} (scope/name alias of "${input.query}").`
+      : null;
 
     if (result.ambiguous) {
       return {
-        markdown: renderAmbiguous(input.query, result.best, result.alternatives, installSuggestionLine),
+        markdown: renderAmbiguous(
+          input.query,
+          result.best,
+          result.alternatives,
+          installSuggestionLine,
+          manifestNote,
+        ),
         structured: candidateToStructured(result.best, result.alternatives),
       };
     }
@@ -65,10 +109,66 @@ export function buildResolveRepoTool(ctx: ToolContext) {
         result.alternatives,
         result.fromCache,
         installSuggestionLine,
+        manifestNote,
       ),
       structured: candidateToStructured(result.best, result.alternatives),
     };
   };
+}
+
+type ManifestMatch = {
+  readonly depName: string;
+  readonly ecosystem: Ecosystem;
+  readonly manifestFile: string;
+};
+
+async function findManifestMatch(query: string): Promise<ManifestMatch | null> {
+  const manifests = await detectManifests(process.cwd());
+  if (manifests.length === 0) return null;
+  const normQuery = normaliseDepName(query);
+
+  // Exact normalised match (e.g. query "react" matches dep "react").
+  for (const m of manifests) {
+    for (const dep of m.deps) {
+      if (normaliseDepName(dep.name) === normQuery) {
+        return { depName: dep.name, ecosystem: m.ecosystem, manifestFile: m.file };
+      }
+    }
+  }
+
+  // Scope match (e.g. query "autotranslate" matches dep "@autotranslate/core").
+  // Prefer the alphabetically-first scoped package so the result is stable
+  // across pnpm/npm install order; the resolver will dedupe via repo URL.
+  const scopeMatches = collectScopeMatches(manifests, normQuery);
+  if (scopeMatches.length > 0) {
+    const first = [...scopeMatches].sort((a, b) => a.depName.localeCompare(b.depName))[0];
+    return first ?? null;
+  }
+
+  return null;
+}
+
+function collectScopeMatches(
+  manifests: ReadonlyArray<DetectedManifest>,
+  normQuery: string,
+): ReadonlyArray<ManifestMatch> {
+  const out: ManifestMatch[] = [];
+  for (const m of manifests) {
+    for (const dep of m.deps) {
+      const scope = scopeOf(dep.name);
+      if (scope && normaliseDepName(scope) === normQuery) {
+        out.push({ depName: dep.name, ecosystem: m.ecosystem, manifestFile: m.file });
+      }
+    }
+  }
+  return out;
+}
+
+function scopeOf(name: string): string | null {
+  if (!name.startsWith("@")) return null;
+  const slash = name.indexOf("/");
+  if (slash < 0) return null;
+  return name.slice(1, slash);
 }
 
 async function offerToInstall(query: string, best: ResolutionCandidate): Promise<string | null> {
@@ -114,18 +214,28 @@ function renderResolved(
   alts: ReadonlyArray<ResolutionCandidate>,
   fromCache: boolean,
   installSuggestionLine: string | null,
+  manifestNote: string | null,
 ): string {
   const lines: string[] = [];
   const slug = `${best.owner}/${best.repo}`;
   const tag = fromCache ? " (cached)" : "";
   lines.push(`# Resolved "${query}" → ${slug}  (${sourceLabel(best.source)} match${tag})`);
   lines.push("");
+  if (manifestNote) {
+    lines.push(manifestNote);
+    lines.push("");
+  }
   lines.push(`repo:    ${slug}`);
   if (best.stars !== undefined) lines.push(`stars:   ${formatStars(best.stars)}`);
   if (best.defaultBranch) lines.push(`default: ${best.defaultBranch}`);
+  if (best.latestTag) lines.push(`latest:  ${best.latestTag}`);
   if (best.description) lines.push(`about:   ${best.description}`);
   lines.push("");
-  lines.push(`Use: \`list_docs("${slug}")\``);
+  // Hint the planner: prefer the latest tag when the user asked about a
+  // specific version, so it doesn't waste a round-trip on the default branch
+  // first then re-resolve to a tag.
+  const refHint = best.latestTag ? `@${best.latestTag}` : "";
+  lines.push(`Use: \`list_docs("${slug}${refHint}")\` or \`search_docs("${slug}${refHint}", "...")\``);
   if (installSuggestionLine) {
     lines.push("");
     lines.push(installSuggestionLine);
@@ -143,10 +253,15 @@ function renderAmbiguous(
   best: ResolutionCandidate,
   alts: ReadonlyArray<ResolutionCandidate>,
   installSuggestionLine: string | null,
+  manifestNote: string | null,
 ): string {
   const lines: string[] = [];
   lines.push(`# Ambiguous: "${query}" matches multiple repos`);
   lines.push("");
+  if (manifestNote) {
+    lines.push(manifestNote);
+    lines.push("");
+  }
   lines.push(
     `Top: ${best.owner}/${best.repo}${best.stars !== undefined ? `  ★ ${formatStars(best.stars)}` : ""}`,
   );
@@ -212,6 +327,7 @@ function candidateToStructured(
     source: best.source,
     stars: best.stars ?? null,
     default_branch: best.defaultBranch ?? null,
+    latest_tag: best.latestTag ?? null,
     confidence: best.confidence,
     alternatives: alts.map((a) => ({
       owner: a.owner,

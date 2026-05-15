@@ -211,13 +211,17 @@ See [`docs/reference/repo-spec.md`](docs/reference/repo-spec.md) for the full gr
 
 ```ts
 resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm via npm/PyPI/crates first, GitHub last.
-              // Suggests `npm install …` when the dep is missing from your lockfile.
+              // Manifest-aware: prefers packages already in your cwd lockfile. Returns the
+              // latest release tag so the planner can pin on the first call. Suggests
+              // `npm install …` when the dep is missing.
 list_docs     // Markdown tree of docs files, with size hints, freshness badges, llms.txt highlights.
               // Optional `since: "2025-04-01"` filter for "what changed since the model's cutoff?".
-fetch_doc     // One file with frontmatter metadata + one-paragraph summary. Supports `lines` /
-              // `head_bytes` for partial reads.
-search_docs   // BM25+ search across the snapshot (per-repo MiniSearch index, cached by commit sha).
-search_all    // Fan-out search across many repos at once. Pass `repos: [...]` or `from_lockfile: true`.
+fetch_doc     // One file at a pinned commit with YAML frontmatter (repo/ref/commit/path/size/
+              // source/~tokens) + body. Supports `lines` / `head_bytes` for partial reads.
+search_docs   // Path-based search — scores doc paths against the query, no content fetched.
+              // ~1s on any repo; the tree is cached per commit sha.
+search_all    // Fan-out path-based search across many repos at once. Pass `repos: [...]` or
+              // `from_lockfile: true`.
 peek          // First N lines of a file before committing to a full fetch.
 get_changes   // Unified diff for one file across two refs.
 changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
@@ -353,7 +357,7 @@ A few decisions worth calling out before you build on top:
 - _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([GitHub changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's _why_ docpilot defaults to the jsDelivr CDN for raw reads, even when a PAT is present.
 - _Authenticated 304 responses are free_ against GitHub's primary rate limit ([docs.github.com](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot's `If-None-Match` flow is built around this — a warm cache effectively doesn't count against your 5,000/hr.
 - _GraphQL has no ETag._ For repeated fetches of the same files, REST + ETag is cheaper. docpilot only escalates to GraphQL on cold fetches of ≥ 4 files at once.
-- _MiniSearch is in-memory._ A repo with >10 MB of docs text indexes in ~200–500 ms on first call. Sub-second is fine for `search_docs` but you'll feel the cold start. Persisted JSON makes warm starts fast.
+- _`search_docs` is path-based._ It scores doc paths against the query (filename match, path-token overlap, doc-tier bonus, depth penalty) and returns the top hits in ~1s on any repo — no per-file content fetch. This handles the common "topic-named-file" case (`middleware.mdx`, `routing.md`); for content-only queries the planner falls back to `list_docs` + `fetch_doc`.
 - _MCP `outputSchema` support is uneven across clients._ As of May 2026 the TypeScript SDK, Claude Code, and Cursor validate it correctly; some clients pass `structuredContent` to the model verbatim (SEP-1624 is still draft). docpilot returns both `content` and `structuredContent` where useful; the markdown `content` is the source of truth.
 - _`llms.txt` is a proposal, not a standard._ Jeremy Howard published it in Sept 2024 and adoption is broad (Mintlify / Fern / Docusaurus / GitBook) but it's not an RFC. docpilot boosts hits inside `llms.txt` when present; it never _requires_ it.
 
@@ -380,13 +384,13 @@ A few decisions worth calling out before you build on top:
 
 ## Roadmap
 
-| Version        | Scope                                                                                                                                                                     | Target   |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| **v0.1** (MVP) | Core tools (`resolve_repo`, `list_docs`, `fetch_doc`, `search_docs`, `peek`), REST + CDN + ETag fetch, npm/PyPI/crates resolver, MiniSearch index, cache, recipes, doctor | 6 weeks  |
-| **v0.2**       | `get_changes`, `doc_quality`, `cache_status`, freshness badges, llms.txt detection, lockfile pre-warm, GraphQL batch, examples mode, training-cutoff diff                 | +4 weeks |
-| **v0.3**       | Issue/PR awareness, private repo support, cross-repo linking, deeper monorepo subpath UX                                                                                  | +4 weeks |
-| **v0.4**       | Non-GitHub forges (GitLab, Bitbucket), local embeddings (opt-in), VS Code companion extension                                                                             | +6 weeks |
-| **v1.0**       | Stable surface, schema freeze, SLO docs, security review                                                                                                                  | Q4 2026  |
+| Version        | Scope                                                                                                                                                                      | Target   |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **v0.1** (MVP) | Core tools (`resolve_repo`, `list_docs`, `fetch_doc`, `search_docs`, `peek`), REST + CDN + ETag fetch, npm/PyPI/crates resolver, path-based search, cache, recipes, doctor | 6 weeks  |
+| **v0.2**       | `get_changes`, `doc_quality`, `cache_status`, freshness badges, llms.txt detection, lockfile pre-warm, GraphQL batch, examples mode, training-cutoff diff                  | +4 weeks |
+| **v0.3**       | Issue/PR awareness, private repo support, cross-repo linking, deeper monorepo subpath UX                                                                                   | +4 weeks |
+| **v0.4**       | Non-GitHub forges (GitLab, Bitbucket), local embeddings (opt-in), VS Code companion extension                                                                              | +6 weeks |
+| **v1.0**       | Stable surface, schema freeze, SLO docs, security review                                                                                                                   | Q4 2026  |
 
 <br />
 

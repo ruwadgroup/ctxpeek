@@ -126,7 +126,16 @@ export async function fetchBlob(
   };
 
   const order: Array<() => Promise<FetchResult | null>> = [];
-  const cdnFirst = opts.preferCdn || !client.hasToken() || ctx.limiter.isDegraded();
+  // CDN-first is now the default for GitHub when CDN is enabled. We pin
+  // every fetch to a commit SHA, so jsDelivr always has an immutable URL —
+  // there's no consistency win from going REST-first, only a budget cost.
+  // ETag savings only mattered on cache re-validation, but cache hits
+  // short-circuit before this function runs. REST stays as fallback.
+  const cdnFirst =
+    opts.preferCdn ||
+    !client.hasToken() ||
+    ctx.limiter.isDegraded() ||
+    (forge === "github" && opts.cdnEnabled);
   if (cdnFirst) {
     order.push(tryCdn);
     order.push(tryRest);

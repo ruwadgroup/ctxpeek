@@ -14,9 +14,8 @@ ${env-paths('docpilot').cache}/
 │       ├── HEAD.json             { ref, sha, etag, fetched_at }
 │       ├── v15.0.0.json
 │       └── tree-{sha}.json       cached tree (compact)
-├── indexes/
-│   └── vercel--next.js--{sha}.minisearch
-├── resolutions.json
+├── resolutions.json              versioned schema; owner/repo + verified metadata
+├── repo-meta.json                7-day cache of getRepo() (stars, defaultBranch, latestTag)
 ├── etag-map.json                 path@sha → ETag
 └── meta.json                     schema version, last-gc, …
 ```

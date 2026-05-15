@@ -10,6 +10,7 @@ import { createBlobStore } from "./cache/blobs.js";
 import { createEtagStore } from "./cache/etag.js";
 import { runGc } from "./cache/gc.js";
 import { createRefStore } from "./cache/refs.js";
+import { RepoMetaCache } from "./cache/repoMeta.js";
 import { type DocpilotConfig, loadConfig } from "./config.js";
 import { listForgeDefinitions } from "./fetch/defineForge.js";
 import type { ForgeRegistry } from "./fetch/forgeClient.js";
@@ -84,12 +85,15 @@ export async function buildContext(argv: ReadonlyArray<string> = [], logger?: Lo
   const log = logger ?? createLogger(config.logLevel, { stream: process.stderr });
 
   const limiter = new RateLimiter(config.fetch.concurrentMax, config.fetch.secondaryBudgetPerMin);
+  await limiter.hydrate(config.paths.limiterStateFile);
   const http = new HttpClient({ userAgent: `docpilot/${DOCPILOT_VERSION}` });
+  const repoMeta = new RepoMetaCache(config.paths.repoMetaFile);
   const rest = new GithubRestClient({
     token: config.auth.token,
     userAgent: `docpilot/${DOCPILOT_VERSION}`,
     limiter,
     http,
+    repoMeta,
   });
   const graphql = config.auth.token
     ? new GithubGraphqlClient({
@@ -126,16 +130,22 @@ export async function buildContext(argv: ReadonlyArray<string> = [], logger?: Lo
     refs,
     etags,
     http,
+    repoMeta,
   };
 }
 
+const SERVER_INSTRUCTIONS = `Fetch version-pinned docs for any library, framework, or open-source package. Flow: \`resolve_repo\` → \`search_docs\` (path-based, fast) → \`fetch_doc\`. Do not grep \`node_modules\` or shell out to \`npm view\`/\`pip show\` for versions — omit the ref and docpilot pins to the default branch. Skip for general programming questions unrelated to a specific library.`;
+
 export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<void> {
   const ctx = await buildContext(argv);
-  const server = new McpServer({ name: "docpilot", version: DOCPILOT_VERSION });
+  const server = new McpServer(
+    { name: "docpilot", version: DOCPILOT_VERSION },
+    { instructions: SERVER_INSTRUCTIONS },
+  );
 
   registerToolWrapper(server, "resolve_repo", resolveRepoInput, {
     description:
-      "Resolve a library name (e.g. 'drizzle orm') to a canonical owner/repo. Tries npm/PyPI/crates/go/rubygems/packagist/hex first, then GitHub repository search.",
+      "Resolve a library/package name to owner/repo. Manifest-aware: prefers packages already in the cwd lockfile. If `ambiguous: true` or the result looks wrong, re-call with `force_refresh: true` or pick from `alternatives[]`.",
     handler: buildResolveRepoTool(ctx),
     transform: (out) => {
       const result: CallToolResult = {
@@ -151,24 +161,24 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
 
   registerSimpleTool(server, "list_docs", listDocsInput, {
     description:
-      "List documentation files in a GitHub repo as a markdown tree. Input: 'owner/repo[@ref][#subpath]'. Highlights llms.txt and recently-changed files.",
+      "List doc files as a tree. Input: 'owner/repo[@ref][#subpath]'. Omit `@ref` for the default branch.",
     handler: buildListDocsTool(ctx),
   });
 
   registerSimpleTool(server, "fetch_doc", fetchDocInput, {
     description:
-      "Fetch a single doc file from a GitHub repo at a pinned ref. Supports `lines: [start, end]` and `head_bytes` for partial reads. Returns markdown frontmatter + content.",
+      "Fetch a doc file at a pinned commit. Supports `lines: [start, end]` and `head_bytes` for partial reads.",
     handler: buildFetchDocTool(ctx),
   });
 
   registerSimpleTool(server, "search_docs", searchDocsInput, {
     description:
-      "BM25+ search across the snapshot's documentation files. Lazy-builds a MiniSearch index on first call and caches it under the commit sha.",
+      "Path-based search across a library's doc files. Fast (~1s, no content fetched). Best first call for 'how do I X with Y' questions — follow up with `fetch_doc` on a result path.",
     handler: buildSearchDocsTool(ctx),
   });
 
   registerSimpleTool(server, "peek", peekInput, {
-    description: "Return the first N lines of a doc file before committing to a full fetch.",
+    description: "First N lines of a doc file. Cheaper than `fetch_doc` for a quick look.",
     handler: buildPeekTool(ctx),
   });
 
@@ -179,36 +189,33 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
 
   registerSimpleTool(server, "doc_quality", docQualityInput, {
     description:
-      "Scorecard for a repo's docs: llms.txt presence, README, framework nav detection, last-touch age. Use before relying heavily on a poorly-documented repo.",
+      "Scorecard for a repo's docs (llms.txt, README, framework nav, freshness). Use before relying on a poorly-documented repo.",
     handler: buildDocQualityTool(ctx),
   });
 
   registerSimpleTool(server, "cache_status", cacheStatusInput, {
-    description: "Show docpilot's on-disk cache state. Pass `{ repo: 'owner/repo' }` for per-repo breakdown.",
+    description: "On-disk cache state. Pass `{ repo: 'owner/repo' }` for per-repo breakdown.",
     handler: buildCacheStatusTool(ctx),
   });
 
   registerSimpleTool(server, "related_repos", relatedReposInput, {
-    description:
-      "Discover peer libraries by scanning a repo's README + llms.txt for github.com links. Ranks by mention count. Useful for 'often-used-with' suggestions.",
+    description: "Find peer libraries via github.com links in the repo's README/llms.txt.",
     handler: buildRelatedReposTool(ctx),
   });
 
   registerSimpleTool(server, "changelog", changelogInput, {
-    description:
-      "Read CHANGELOG.md and return entries between two refs (e.g. v14.0.0 → v15.0.0). Falls back to the full file when ref headings are not detected.",
+    description: "CHANGELOG entries between two refs (e.g. v14.0.0 → v15.0.0).",
     handler: buildChangelogTool(ctx),
   });
 
   registerSimpleTool(server, "get_issues", getIssuesInput, {
-    description:
-      "Search a repo's issues and pull requests matching a query. Uses GitHub's /search/issues (separate 30/min bucket). Opt-in per call.",
+    description: "Search a repo's issues/PRs matching a query. Opt-in per call (separate rate-limit bucket).",
     handler: buildGetIssuesTool(ctx),
   });
 
   registerSimpleTool(server, "search_all", searchAllInput, {
     description:
-      "Fan out a BM25+ search across multiple repos and return merged ranked hits. Pass `repos: [...]` or `from_lockfile: true` to use the current project's deps.",
+      "Fan-out search across multiple repos. Pass `repos: [...]` or `from_lockfile: true` to use the cwd's deps.",
     handler: buildSearchAllTool(ctx),
   });
 

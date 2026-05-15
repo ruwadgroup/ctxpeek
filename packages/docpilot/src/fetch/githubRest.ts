@@ -1,6 +1,7 @@
 // GitHub REST client. Uses undici via HttpClient for connection pooling.
 
 import { NotFoundError, RateLimitError } from "@docpilot/core";
+import type { RepoMetaCache } from "../cache/repoMeta.js";
 import { HttpClient, type HttpRequestInit, type HttpResponse } from "../util/index.js";
 import type { RateLimiter } from "./ratelimit.js";
 
@@ -10,6 +11,7 @@ export type RestClientOptions = {
   readonly baseUrl?: string;
   readonly limiter?: RateLimiter;
   readonly http?: HttpClient;
+  readonly repoMeta?: RepoMetaCache;
 };
 
 export type RepoMetadata = {
@@ -62,36 +64,100 @@ export class GithubRestClient {
   private readonly token: string | undefined;
   private readonly baseUrl: string;
   private readonly limiter: RateLimiter | undefined;
+  private readonly repoMeta: RepoMetaCache | undefined;
 
   constructor(opts: RestClientOptions) {
     this.http = opts.http ?? new HttpClient(opts.userAgent ? { userAgent: opts.userAgent } : {});
     this.token = opts.token;
     this.baseUrl = opts.baseUrl ?? "https://api.github.com";
     this.limiter = opts.limiter;
+    this.repoMeta = opts.repoMeta;
   }
 
   hasToken(): boolean {
     return Boolean(this.token);
   }
 
+  /**
+   * Repo metadata. Hits the 7-day cache first, dedupes concurrent calls.
+   * `latestTag` is fetched lazily — see `getLatestTag` — so the resolve hot
+   * path doesn't burn a second REST call for an enrichment field most
+   * callers don't read.
+   */
   async getRepo(owner: string, repo: string): Promise<RepoMetadata> {
-    const res = await this.request(`${this.baseUrl}/repos/${owner}/${repo}`);
-    this.assertSuccess(res, `${owner}/${repo}`);
-    const data = JSON.parse(res.body.toString("utf8")) as {
-      full_name: string;
-      default_branch: string;
-      stargazers_count: number;
-      description: string | null;
-    };
-    const latestTag = await this.tryGetLatestTag(owner, repo);
-    return {
-      owner,
-      repo,
-      defaultBranch: data.default_branch,
-      stars: data.stargazers_count,
-      description: data.description,
-      latestTag,
-    };
+    if (this.repoMeta) {
+      const cached = await this.repoMeta.get("github", owner, repo);
+      if (cached) {
+        return {
+          owner: cached.owner,
+          repo: cached.repo,
+          defaultBranch: cached.defaultBranch,
+          stars: cached.stars,
+          description: cached.description,
+          latestTag: cached.latestTag,
+        };
+      }
+      if (this.repoMeta.isKnownMissing("github", owner, repo)) {
+        throw new NotFoundError(`${owner}/${repo}`);
+      }
+    }
+    return this.dedup(`getRepo:${owner}/${repo}`, async () => {
+      try {
+        const res = await this.request(`${this.baseUrl}/repos/${owner}/${repo}`);
+        this.assertSuccess(res, `${owner}/${repo}`);
+        const data = JSON.parse(res.body.toString("utf8")) as {
+          full_name: string;
+          default_branch: string;
+          stargazers_count: number;
+          description: string | null;
+        };
+        const meta: RepoMetadata = {
+          owner,
+          repo,
+          defaultBranch: data.default_branch,
+          stars: data.stargazers_count,
+          description: data.description,
+          latestTag: null,
+        };
+        if (this.repoMeta) {
+          await this.repoMeta.put({
+            forge: "github",
+            owner: meta.owner,
+            repo: meta.repo,
+            defaultBranch: meta.defaultBranch,
+            stars: meta.stars,
+            description: meta.description,
+            latestTag: null,
+            latestTagFetchedAt: null,
+            fetchedAt: new Date().toISOString(),
+          });
+        }
+        return meta;
+      } catch (err) {
+        if (err instanceof NotFoundError && this.repoMeta) {
+          this.repoMeta.markMissing("github", owner, repo);
+        }
+        throw err;
+      }
+    });
+  }
+
+  /**
+   * Cached latest-release tag with a 1-day TTL. Only the first caller per
+   * day per repo spends an API call.
+   */
+  async getLatestTag(owner: string, repo: string): Promise<string | null> {
+    if (this.repoMeta) {
+      const cached = await this.repoMeta.getLatestTag("github", owner, repo);
+      if (cached !== undefined) return cached;
+    }
+    return this.dedup(`getLatestTag:${owner}/${repo}`, async () => {
+      const tag = await this.tryGetLatestTag(owner, repo);
+      if (this.repoMeta) {
+        await this.repoMeta.putLatestTag("github", owner, repo, tag);
+      }
+      return tag;
+    });
   }
 
   async tryGetLatestTag(owner: string, repo: string): Promise<string | null> {
@@ -109,46 +175,65 @@ export class GithubRestClient {
   }
 
   async resolveRef(owner: string, repo: string, ref: string): Promise<CommitInfo> {
-    const res = await this.request(
-      `${this.baseUrl}/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`,
-    );
-    this.assertSuccess(res, `${owner}/${repo}@${ref}`);
-    const data = JSON.parse(res.body.toString("utf8")) as {
-      sha: string;
-      commit: { committer: { date: string } };
-    };
-    return { sha: data.sha, committedAt: data.commit.committer.date };
+    if (this.repoMeta?.isKnownMissing("github", owner, repo, ref)) {
+      throw new NotFoundError(`${owner}/${repo}@${ref}`);
+    }
+    return this.dedup(`resolveRef:${owner}/${repo}@${ref}`, async () => {
+      try {
+        const res = await this.request(
+          `${this.baseUrl}/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`,
+        );
+        this.assertSuccess(res, `${owner}/${repo}@${ref}`);
+        const data = JSON.parse(res.body.toString("utf8")) as {
+          sha: string;
+          commit: { committer: { date: string } };
+        };
+        return { sha: data.sha, committedAt: data.commit.committer.date };
+      } catch (err) {
+        if (err instanceof NotFoundError && this.repoMeta) {
+          this.repoMeta.markMissing("github", owner, repo, ref);
+        }
+        throw err;
+      }
+    });
+  }
+
+  private dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.repoMeta) return fn();
+    return this.repoMeta.dedup(key, fn);
   }
 
   async getTree(owner: string, repo: string, sha: string, recursive = true): Promise<TreeApiResult> {
-    const url = `${this.baseUrl}/repos/${owner}/${repo}/git/trees/${sha}${recursive ? "?recursive=1" : ""}`;
-    const res = await this.request(url);
-    this.assertSuccess(res, `${owner}/${repo}@${sha}/tree`);
-    const data = JSON.parse(res.body.toString("utf8")) as {
-      sha: string;
-      truncated: boolean;
-      tree: Array<{ path: string; type: string; size?: number; sha: string }>;
-    };
-    return {
-      sha: data.sha,
-      truncated: data.truncated,
-      tree: data.tree
-        .filter((e) => e.type === "blob" || e.type === "tree" || e.type === "commit")
-        .map((e) => {
-          const entry: {
-            path: string;
-            type: "blob" | "tree" | "commit";
-            sha: string;
-            size?: number;
-          } = {
-            path: e.path,
-            type: e.type as "blob" | "tree" | "commit",
-            sha: e.sha,
-          };
-          if (e.size !== undefined) entry.size = e.size;
-          return entry as TreeApiEntry;
-        }),
-    };
+    return this.dedup(`getTree:${owner}/${repo}@${sha}:${recursive ? "r" : "f"}`, async () => {
+      const url = `${this.baseUrl}/repos/${owner}/${repo}/git/trees/${sha}${recursive ? "?recursive=1" : ""}`;
+      const res = await this.request(url);
+      this.assertSuccess(res, `${owner}/${repo}@${sha}/tree`);
+      const data = JSON.parse(res.body.toString("utf8")) as {
+        sha: string;
+        truncated: boolean;
+        tree: Array<{ path: string; type: string; size?: number; sha: string }>;
+      };
+      return {
+        sha: data.sha,
+        truncated: data.truncated,
+        tree: data.tree
+          .filter((e) => e.type === "blob" || e.type === "tree" || e.type === "commit")
+          .map((e) => {
+            const entry: {
+              path: string;
+              type: "blob" | "tree" | "commit";
+              sha: string;
+              size?: number;
+            } = {
+              path: e.path,
+              type: e.type as "blob" | "tree" | "commit",
+              sha: e.sha,
+            };
+            if (e.size !== undefined) entry.size = e.size;
+            return entry as TreeApiEntry;
+          }),
+      };
+    });
   }
 
   async getContents(

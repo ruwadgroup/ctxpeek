@@ -5,14 +5,24 @@
  *   - token bucket (default 60 req/min) to stay clear of 900 pts/min endpoint cap
  *   - exponential backoff with Retry-After honor on 429/403 is in HttpClient
  *   - X-RateLimit-Remaining < 100 → preferCdn switches on for the rest of session
+ *   - state (latestRemaining / resetAt / degraded) survives process restarts via
+ *     an optional on-disk file so a fresh MCP server inherits the budget.
  *
  * Design doc §4.6.
  */
-import { sleep } from "../util/index.js";
+import { readJson, writeJson } from "../util/jsonStore.js";
+import { sleep } from "../util/promise.js";
 
 export type RateLimitState = {
   readonly remaining: number | undefined;
   readonly resetAt: Date | undefined;
+};
+
+type PersistedState = {
+  readonly remaining: number | null;
+  readonly resetAt: string | null;
+  readonly degraded: boolean;
+  readonly updatedAt: string;
 };
 
 export class RateLimiter {
@@ -23,12 +33,33 @@ export class RateLimiter {
   private latestRemaining: number | undefined;
   private latestResetAt: Date | undefined;
   private degraded = false;
+  private statePath: string | undefined;
+  private lastPersist = 0;
 
   constructor(
     private readonly concurrentMax = 8,
     private readonly perMinute = 60,
   ) {
     this.bucketTokens = perMinute;
+  }
+
+  /**
+   * Wire up an on-disk state file. Call `await hydrate(path)` from the server
+   * boot path. Subsequent `observe()` calls schedule a debounced flush.
+   */
+  async hydrate(filePath: string): Promise<void> {
+    this.statePath = filePath;
+    const data = await readJson<PersistedState>(filePath);
+    if (!data) return;
+    if (data.resetAt) {
+      const reset = new Date(data.resetAt);
+      // If the reset is in the past the window has elapsed — discard.
+      if (reset.getTime() > Date.now()) {
+        this.latestResetAt = reset;
+        if (typeof data.remaining === "number") this.latestRemaining = data.remaining;
+        if (data.degraded) this.degraded = true;
+      }
+    }
   }
 
   isDegraded(): boolean {
@@ -56,17 +87,42 @@ export class RateLimiter {
   observe(headers: Record<string, string>): void {
     const remHeader = headers["x-ratelimit-remaining"];
     const resetHeader = headers["x-ratelimit-reset"];
+    let dirty = false;
     if (remHeader !== undefined) {
       const n = Number(remHeader);
       if (Number.isFinite(n)) {
         this.latestRemaining = n;
         if (n < 100) this.degraded = true;
+        dirty = true;
       }
     }
     if (resetHeader !== undefined) {
       const epoch = Number(resetHeader);
-      if (Number.isFinite(epoch)) this.latestResetAt = new Date(epoch * 1000);
+      if (Number.isFinite(epoch)) {
+        this.latestResetAt = new Date(epoch * 1000);
+        dirty = true;
+      }
     }
+    if (dirty) this.schedulePersist();
+  }
+
+  private schedulePersist(): void {
+    if (!this.statePath) return;
+    // Debounce: at most once every 5 seconds. Don't await — let it race.
+    const now = Date.now();
+    if (now - this.lastPersist < 5000) return;
+    this.lastPersist = now;
+    const path = this.statePath;
+    const payload: PersistedState = {
+      remaining: this.latestRemaining ?? null,
+      resetAt: this.latestResetAt ? this.latestResetAt.toISOString() : null,
+      degraded: this.degraded,
+      updatedAt: new Date().toISOString(),
+    };
+    writeJson(path, payload).catch(() => {
+      // Best-effort. A failed persist is harmless; we just re-burn budget
+      // next process boot.
+    });
   }
 
   private async takeToken(): Promise<void> {

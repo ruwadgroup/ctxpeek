@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { IssueHit } from "../fetch/githubRest.js";
 import { parseRepoSpec } from "../util/repoSpec.js";
 import { formatRelativeAge } from "../util/tokens.js";
 import type { ToolContext } from "./context.js";
@@ -25,7 +26,7 @@ export function buildGetIssuesTool(ctx: ToolContext) {
     };
     if (input.state) opts.state = input.state;
     if (input.type) opts.type = input.type;
-    const hits = await ctx.rest.searchIssues(spec.owner, spec.repo, input.query, opts);
+    const hits = await searchIssuesPreferGraphql(ctx, spec.owner, spec.repo, input.query, opts);
     const lines: string[] = [];
     lines.push(
       `# Issues / PRs in ${spec.owner}/${spec.repo} matching "${input.query}"  (${hits.length} hit${
@@ -54,4 +55,25 @@ function truncate(s: string): string {
   const single = s.replace(/\s+/g, " ").trim();
   if (single.length <= 200) return single;
   return `${single.slice(0, 199)}…`;
+}
+
+async function searchIssuesPreferGraphql(
+  ctx: ToolContext,
+  owner: string,
+  repo: string,
+  query: string,
+  opts: { state?: "open" | "closed" | "all"; type?: "issue" | "pr" | "both"; perPage?: number },
+): Promise<ReadonlyArray<IssueHit>> {
+  // GraphQL search uses the 5000pt/hr budget; REST /search/* uses the 30/min
+  // bucket. Prefer GraphQL when a token is available; REST stays as fallback.
+  if (ctx.graphql) {
+    try {
+      return await ctx.graphql.searchIssues(owner, repo, query, opts);
+    } catch (err) {
+      ctx.logger.debug("get_issues: GraphQL search failed, falling back to REST", {
+        err: String(err),
+      });
+    }
+  }
+  return ctx.rest.searchIssues(owner, repo, query, opts);
 }

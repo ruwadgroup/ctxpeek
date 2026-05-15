@@ -8,14 +8,14 @@ All input schemas use `zod` via `@modelcontextprotocol/sdk`.
 
 ## `resolve_repo(query, opts?)`
 
-Turn a fuzzy library name into a canonical `owner/repo`. Suggests an install command when the dep is missing from your project lockfile.
+Turn a fuzzy library name into a canonical `owner/repo`. **Manifest-aware**: when the cwd has a `package.json` / `pyproject.toml` / etc. that contains a dep matching the query (by name or scope), the resolver prefers that exact package — so `"autotranslate"` from a project depending on `@autotranslate/*` lands on the right repo, not a same-named toy package elsewhere. Suggests an install command when the dep is missing from your lockfile.
 
 **Input**
 
 ```ts
 {
   query: string                // Required. "next.js", "drizzle orm", "axum", …
-  ecosystem?: Ecosystem        // Bias the registry probe order
+  ecosystem?: Ecosystem        // Bias the registry probe order (also disables manifest preflight)
   force_refresh?: boolean      // Bypass the 30-day resolutions cache
 }
 
@@ -25,18 +25,24 @@ type Ecosystem = "npm" | "pypi" | "crates" | "go" | "rubygems" | "packagist" | "
 **Output**
 
 ```markdown
-# Resolved "drizzle orm" → drizzle-team/drizzle-orm  (npm match)
+# Resolved "next" → vercel/next.js  (GitHub search match)
 
-repo:    drizzle-team/drizzle-orm
-stars:   28.4k
-default: main
+repo:    vercel/next.js
+stars:   139.5k
+default: canary
+latest:  v16.2.6
+about:   The React Framework
 
-Use: `list_docs("drizzle-team/drizzle-orm")`
+Use: `list_docs("vercel/next.js@v16.2.6")` or `search_docs("vercel/next.js@v16.2.6", "...")`
 
-> Not in your package.json — `npm install drizzle-orm` to add it.
+Alternative matches (lower confidence):
+- ChatGPTNextWeb/NextChat — Light and fast AI assistant…
+- nextauthjs/next-auth — Authentication for the Web.
 ```
 
-When ambiguous (top result has stars < 10× #2), all candidates are returned and the model picks. Algorithm: see [`docs/internals/architecture.md`](../internals/architecture.md#resolver).
+`latest` is the most recent release tag (from `/releases/latest`), populated for both registry and GitHub-search hits. Use it directly when the user asks about a stable version — avoids a double-fetch through the default branch first.
+
+**Structured output** also includes `latest_tag`, `confidence`, and `alternatives[]`. A 5k+-star GitHub-search match resolves at confidence 0.9 even when a similarly-named runner-up has comparable stars; ambiguity is only flagged when the winner is neither dominant nor popular. See [`docs/internals/architecture.md`](../internals/architecture.md#resolver).
 
 ---
 
@@ -79,7 +85,7 @@ Legend: ✦ high-signal (top-level / llms.txt / framework nav),
 
 ## `fetch_doc(repo, path, opts?)`
 
-Fetch one file with metadata frontmatter and a one-paragraph local extractive summary.
+Fetch one file at a pinned commit with YAML frontmatter metadata followed by the file body.
 
 **Input**
 
@@ -103,7 +109,6 @@ path: docs/01-app/02-routing.mdx
 size: 8923
 source: cdn
 ~tokens: 2150
-summary: App Router uses file-system based routing. Layouts wrap pages; loading.tsx renders during streaming.
 ---
 
 # Routing
@@ -117,37 +122,38 @@ Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus instruction
 
 ## `search_docs(repo, query, opts?)`
 
-BM25+ search over a snapshot's docs files. Index is built lazily on first call, persisted by commit sha.
+Path-based search over a snapshot's doc files. Scores doc paths against the query (filename match, path-token overlap, doc-tier bonus, depth penalty) and returns the top hits. No content is fetched — runs in ~1s on any repo because all we need is the tree, which is cached per commit sha.
 
 **Input**
 
 ```ts
 {
-  repo: string                                  // [forge:]owner/repo[@ref]
-  query: string                                 // Free-text
-  limit?: number                                // Max hits — default 10
-  fields?: ("title" | "headings" | "body")[]   // Restrict the search — default all
-  snippet_chars?: number                        // Snippet width — default 240
+  repo: string     // [forge:]owner/repo[@ref]
+  query: string    // Free-text
+  limit?: number   // Max hits — default 10
 }
 ```
 
 **Output**
 
 ```markdown
-# Search: "middleware" in vercel/next.js@v15.0.0  (8 hits, 0.04s)
+# Search: "middleware" in vercel/next.js@v15.5.4  (3 hits, 1.06s)
 
-1. docs/01-app/01-getting-started/15-deploying/middleware.mdx  · score 12.4
-   > Middleware lets you run code before a request is completed…
-   `fetch_doc("vercel/next.js@v15.0.0", "docs/.../middleware.mdx")`
+1. docs/01-app/03-api-reference/03-file-conventions/middleware.mdx  · score 86.0
+   > docs · app · api reference · file conventions · middleware
+   `fetch_doc("vercel/next.js@v15.5.4", "docs/01-app/03-api-reference/03-file-conventions/middleware.mdx")`
 
-2. …
+2. docs/02-pages/04-api-reference/02-file-conventions/middleware.mdx  · score 86.0
+   …
 ```
+
+The snippet under each hit is a readable breadcrumb synthesized from path segments — gives the planner enough signal to pick the right file before calling `fetch_doc`.
 
 ---
 
 ## `search_all(query, opts?)`
 
-Fan-out search across many repos in one call. Reuses per-repo indexes.
+Fan-out path-based search across many repos in one call. Same scoring as `search_docs`, results merged and ranked by score across repos.
 
 **Input**
 
@@ -158,7 +164,6 @@ Fan-out search across many repos in one call. Reuses per-repo indexes.
   from_lockfile?: boolean      // Resolve every direct dep in the cwd lockfile and search them — default false
   limit_per_repo?: number      // Per-repo hit cap — default 3
   total_limit?: number         // Cross-repo hit cap — default 15
-  snippet_chars?: number       // Snippet width — default 200
 }
 ```
 

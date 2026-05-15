@@ -4,6 +4,7 @@ import { type Forge, NotFoundError, type Snapshot } from "@docpilot/core";
 import type { BlobStore } from "../cache/blobs.js";
 import type { EtagStore } from "../cache/etag.js";
 import type { RefStore, TreeRecord } from "../cache/refs.js";
+import type { RepoMetaCache } from "../cache/repoMeta.js";
 import type { DocpilotConfig } from "../config.js";
 import { type ForgeRegistry, pickForge } from "../fetch/forgeClient.js";
 import type { GithubGraphqlClient } from "../fetch/githubGraphql.js";
@@ -26,6 +27,7 @@ export type ToolContext = {
   readonly refs: RefStore;
   readonly etags: EtagStore;
   readonly http: HttpClient;
+  readonly repoMeta: RepoMetaCache;
 };
 
 export function fetchContextFrom(ctx: ToolContext): FetchContext {
@@ -117,6 +119,37 @@ export async function getTreeCached(
   const cacheKey = `${forge}-${sha}`;
   const cached = await ctx.refs.getTree(owner, repo, cacheKey);
   if (cached) return cached;
+
+  // GitHub tree listings can come from jsDelivr's /flat endpoint for free —
+  // no REST budget burned. Falls back to REST getTree on CDN failure (very
+  // fresh commits sometimes 404, and the endpoint omits empty directories).
+  if (forge === "github" && ctx.config.fetch.cdnEnabled) {
+    try {
+      const flat = await ctx.cdn.fetchFlatTree(owner, repo, sha);
+      const record: TreeRecord = {
+        owner,
+        repo,
+        commitSha: cacheKey,
+        truncated: false,
+        entries: flat.map((f) => ({
+          path: f.name,
+          type: "blob",
+          size: f.size,
+          sha: f.hash,
+        })),
+        fetchedAt: new Date().toISOString(),
+      };
+      await ctx.refs.putTree(record);
+      return record;
+    } catch (err) {
+      ctx.logger.debug("getTreeCached: CDN flat listing unavailable, falling back to REST", {
+        repo: `${owner}/${repo}`,
+        sha,
+        err: String(err),
+      });
+    }
+  }
+
   const client = pickForge(ctx.forges, forge);
   const fresh = await client.getTree(owner, repo, sha, true);
   const record: TreeRecord = {

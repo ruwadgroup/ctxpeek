@@ -80,6 +80,37 @@ export function classifyTree<
   return entries.filter((e) => e.type === "blob" && isDocPath(e.path, opts));
 }
 
+/**
+ * Doc-tier ranking so we can cap indexing at the top N files for huge repos
+ * (next.js, react). Lower number = higher priority.
+ *
+ *   0  llms.txt / llms-full.txt — curated, AI-targeted
+ *   1  top-level README / CHANGELOG / MIGRATION (immediate signal)
+ *   2  files directly under docs/, documentation/, guide/ (canonical docs)
+ *   3  other doc dirs (apps/docs/, website/docs/, etc.)
+ *   4  per-package READMEs in a monorepo (packages/* /README.md)
+ *   5  everything else that survived `isDocPath`
+ */
+export function docTier(filePath: string): number {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith("llms.txt") || lower.endsWith("llms-full.txt")) return 0;
+  if (!lower.includes("/")) return 1;
+  if (
+    lower.startsWith("docs/") ||
+    lower.startsWith("documentation/") ||
+    lower.startsWith("doc/") ||
+    lower.startsWith("guide/") ||
+    lower.startsWith("guides/")
+  ) {
+    return 2;
+  }
+  if (lower.startsWith("apps/docs/") || lower.startsWith("website/docs/") || lower.startsWith("site/docs/")) {
+    return 3;
+  }
+  if (/^packages\/[^/]+\/readme\.(md|mdx|rst)$/i.test(filePath)) return 4;
+  return 5;
+}
+
 function extOf(p: string): string {
   const i = p.lastIndexOf(".");
   if (i < 0) return "";

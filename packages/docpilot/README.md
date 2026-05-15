@@ -68,11 +68,11 @@ src/
 │   └── parsers/                       // One file per language plug-in
 │       └── (same layout as above)
 ├── cache/                             // Content-addressed disk cache
-│   └── blobs.ts, refs.ts, etag.ts, gc.ts
-├── search/                            // MiniSearch (BM25+) lifecycle
-│   └── build.ts, persist.ts
+│   └── blobs.ts, refs.ts, etag.ts, gc.ts, repoMeta.ts
+├── search/                            // Path-based search scoring
+│   └── pathSearch.ts
 ├── format/                            // Markdown renderers
-│   └── tree.ts, frontmatter.ts, searchMd.ts, docsPaths.ts, summarize.ts
+│   └── tree.ts, frontmatter.ts, searchMd.ts, docsPaths.ts
 └── util/                              // HTTP, paths, sha, logger, promise helpers
 ```
 

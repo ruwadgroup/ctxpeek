@@ -15,6 +15,8 @@ export type DocpilotPaths = {
   readonly resolutionsFile: string;
   readonly etagMapFile: string;
   readonly metaFile: string;
+  readonly repoMetaFile: string;
+  readonly limiterStateFile: string;
 };
 
 export function defaultPaths(): DocpilotPaths {
@@ -34,6 +36,8 @@ export function paths(cacheDir: string, configDir: string, logDir: string): Docp
     resolutionsFile: path.join(cache, "resolutions.json"),
     etagMapFile: path.join(cache, "etag-map.json"),
     metaFile: path.join(cache, "meta.json"),
+    repoMetaFile: path.join(cache, "repo-meta.json"),
+    limiterStateFile: path.join(cache, "limiter-state.json"),
   };
 }
 

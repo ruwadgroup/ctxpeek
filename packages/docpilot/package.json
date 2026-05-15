@@ -65,7 +65,6 @@
     "env-paths": "^3.0.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.0",
-    "minisearch": "^7.2.0",
     "proper-lockfile": "^4.1.2",
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
