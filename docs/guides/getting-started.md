@@ -5,34 +5,32 @@ From "no ctxpeek installed" to "my coding assistant pulled fresh Drizzle ORM doc
 ## Prerequisites
 
 - Node.js **≥ 20** (`node --version`)
-- An MCP-capable client: Claude Desktop, Claude Code, Cursor, Windsurf, VS Code, or Codex CLI
+- An MCP-capable client: Claude Code, Cursor, VS Code, Windsurf, Codex CLI, Claude Desktop, or another stdio-capable MCP client
 - Optional but recommended: a [GitHub Personal Access Token](https://github.com/settings/tokens) with `Contents: Read` scope (fine-grained PAT is enough for public repos)
 
 ## 1. Add ctxpeek to your MCP client
 
-### Claude Desktop & Claude Code
+### Claude Code
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Add ctxpeek directly with the `claude` CLI:
 
-```jsonc
-{
-  "mcpServers": {
-    "ctxpeek": {
-      "command": "npx",
-      "args": ["-y", "ctxpeek"],
-      "env": {
-        "GITHUB_TOKEN": "ghp_…"
-      }
-    }
-  }
-}
+```bash
+claude mcp add --transport stdio --scope user ctxpeek -- npx -y ctxpeek
+claude mcp list
 ```
 
-Restart the client. The ctxpeek tools should appear in the tool list within a few seconds.
+If you want to pass a GitHub token through Claude Code, put the `--env` option before the server name:
 
-### Cursor
+```bash
+claude mcp add --transport stdio --scope user --env GITHUB_TOKEN=github_pat_... ctxpeek -- npx -y ctxpeek
+```
 
-Edit `~/.cursor/mcp.json`:
+Inside Claude Code, run `/mcp` to confirm the server is connected.
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Edit `~/.cursor/mcp.json` for global use, or `.cursor/mcp.json` inside a project:
 
 ```jsonc
 {
@@ -45,13 +43,16 @@ Edit `~/.cursor/mcp.json`:
 }
 ```
 
-### VS Code
+</details>
 
-Add to `mcp.servers` in your settings:
+<details>
+<summary><b>VS Code</b></summary>
+
+Add this to `.vscode/mcp.json` in your workspace, or to your user MCP config:
 
 ```jsonc
 {
-  "mcp.servers": {
+  "servers": {
     "ctxpeek": {
       "type": "stdio",
       "command": "npx",
@@ -61,15 +62,92 @@ Add to `mcp.servers` in your settings:
 }
 ```
 
-### Codex CLI
+</details>
+
+<details>
+<summary><b>Windsurf</b></summary>
+
+Add this to `~/.codeium/windsurf/mcp_config.json`:
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
 
 ```bash
 codex mcp add ctxpeek -- npx -y ctxpeek
 ```
 
-### Windsurf
+</details>
 
-Same `mcpServers` JSON shape as Claude Desktop / Cursor.
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+Use this only for Claude Desktop. Claude Code should use the `claude mcp add` command above.
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows:
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Generic stdio MCP JSON</b></summary>
+
+Many MCP clients accept this `mcpServers` shape:
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Windows npx spawn workaround</b></summary>
+
+If your MCP client cannot spawn `npx` on Windows, wrap it with `cmd /c`:
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+Restart or reload your client after changing JSON config. The ctxpeek tools should appear in the tool list within a few seconds.
 
 ## 2. Verify the install
 

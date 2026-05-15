@@ -20,7 +20,15 @@ A **fine-grained PAT** with `Contents: Read` on public repositories is enough fo
    - Resource owner: yourself or an org
    - Repository access: `Public repositories (read-only)`
    - Permissions: `Contents — Read-only`, `Metadata — Read-only`
-3. Set it in your MCP client config:
+3. Pass it to ctxpeek through your MCP client.
+
+For Claude Code:
+
+```bash
+claude mcp add --transport stdio --scope user --env GITHUB_TOKEN=github_pat_... ctxpeek -- npx -y ctxpeek
+```
+
+For JSON-based stdio MCP clients:
 
 ```jsonc
 {

@@ -4,23 +4,17 @@
 
 > Local-first MCP server that turns any public GitHub, GitLab, or Bitbucket repo into fresh, version-pinned documentation for AI coding assistants.
 
-Distributed for `npx ctxpeek` use in MCP-capable clients (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Codex CLI).
+Distributed for `npx ctxpeek` use in MCP-capable clients (Claude Code, Cursor, Windsurf, VS Code, Codex CLI, Claude Desktop).
 
 For installation, configuration, tool reference, and troubleshooting see the top-level [README](../../README.md) and [docs/](../../docs/).
 
 ## Quick start
 
-```jsonc
-// claude_desktop_config.json (and equivalents)
-{
-  "mcpServers": {
-    "ctxpeek": {
-      "command": "npx",
-      "args": ["-y", "ctxpeek"]
-    }
-  }
-}
+```bash
+claude mcp add --transport stdio --scope user ctxpeek -- npx -y ctxpeek
 ```
+
+For Cursor, VS Code, Windsurf, Codex CLI, Claude Desktop, and generic JSON setup, see the top-level [README](../../README.md#quick-start).
 
 ## Layout
 

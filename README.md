@@ -126,7 +126,19 @@ That's ctxpeek. The tool I wanted on my own machine, six months ago.
 
 ### 1. Add ctxpeek to your MCP client
 
-**Claude Desktop / Claude Code** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+For Claude Code, add ctxpeek directly with the `claude` CLI:
+
+```bash
+claude mcp add --transport stdio --scope user ctxpeek -- npx -y ctxpeek
+claude mcp list
+```
+
+Inside Claude Code, run `/mcp` to confirm the server is connected.
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Add this to `~/.cursor/mcp.json` for global use, or `.cursor/mcp.json` inside a project:
 
 ```jsonc
 {
@@ -139,15 +151,76 @@ That's ctxpeek. The tool I wanted on my own machine, six months ago.
 }
 ```
 
-**Cursor** (`~/.cursor/mcp.json`), **Windsurf**, and **VS Code** (`mcp.servers`) take the same shape.
+</details>
 
-**Codex CLI:**
+<details>
+<summary><b>VS Code</b></summary>
+
+Add this to `.vscode/mcp.json` in your workspace, or to your user MCP config:
+
+```jsonc
+{
+  "servers": {
+    "ctxpeek": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Windsurf</b></summary>
+
+Add this to `~/.codeium/windsurf/mcp_config.json`:
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
 
 ```bash
 codex mcp add ctxpeek -- npx -y ctxpeek
 ```
 
-**Windows:** `npx` is a `.cmd` shim and several MCP clients fail to spawn it. Wrap it:
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+Use this only for Claude Desktop. Claude Code should use the `claude mcp add` command above.
+
+```jsonc
+{
+  "mcpServers": {
+    "ctxpeek": {
+      "command": "npx",
+      "args": ["-y", "ctxpeek"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Windows npx spawn workaround</b></summary>
+
+`npx` is a `.cmd` shim on Windows, and several MCP clients fail to spawn it directly. Wrap it with `cmd /c`:
 
 ```jsonc
 {
@@ -159,6 +232,8 @@ codex mcp add ctxpeek -- npx -y ctxpeek
   }
 }
 ```
+
+</details>
 
 Run `npx -y ctxpeek doctor` once to verify your environment.
 
