@@ -9,6 +9,21 @@ async function makeTempFile(): Promise<string> {
   return path.join(dir, "limiter-state.json");
 }
 
+async function waitForPersistedState(file: string): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      JSON.parse(await fs.readFile(file, "utf8"));
+      return;
+    } catch (err) {
+      lastError = err;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("timed out waiting for persisted limiter state");
+}
+
 describe("RateLimiter", () => {
   it("flips into degraded mode when X-RateLimit-Remaining < 100", () => {
     const rl = new RateLimiter();
@@ -44,8 +59,7 @@ describe("RateLimiter", () => {
     const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
     a.observe({ "x-ratelimit-remaining": "10", "x-ratelimit-reset": String(futureEpoch) });
 
-    // Give the debounced async write a moment to flush.
-    await new Promise((r) => setTimeout(r, 10));
+    await waitForPersistedState(file);
 
     const b = new RateLimiter();
     await b.hydrate(file);
