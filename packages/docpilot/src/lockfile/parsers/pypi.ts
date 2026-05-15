@@ -19,12 +19,16 @@ function parsePyProject(raw: string) {
   const project = toml.project as
     | {
         dependencies?: ReadonlyArray<string>;
+        "optional-dependencies"?: Record<string, ReadonlyArray<string>>;
       }
     | undefined;
   const poetry = (
     toml.tool as
       | {
-          poetry?: { dependencies?: Record<string, string | { version?: string }> };
+          poetry?: {
+            dependencies?: Record<string, string | { version?: string }>;
+            group?: Record<string, { dependencies?: Record<string, string | { version?: string }> }>;
+          };
         }
       | undefined
   )?.poetry;
@@ -34,9 +38,22 @@ function parsePyProject(raw: string) {
     if (!match?.[1]) continue;
     out.push({ name: match[1], version: match[2], direct: true });
   }
+  for (const group of Object.values(project?.["optional-dependencies"] ?? {})) {
+    for (const entry of group) {
+      const match = /^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*(?:[<>=!~]=?|==)\s*([\w.+-]+))?/.exec(entry);
+      if (!match?.[1]) continue;
+      out.push({ name: match[1], version: match[2], direct: true });
+    }
+  }
   if (poetry?.dependencies) {
     for (const [name, spec] of Object.entries(poetry.dependencies)) {
       if (name.toLowerCase() === "python") continue;
+      const version = typeof spec === "string" ? spec.replace(/^[~^]/, "") : spec.version;
+      out.push({ name, version, direct: true });
+    }
+  }
+  for (const group of Object.values(poetry?.group ?? {})) {
+    for (const [name, spec] of Object.entries(group.dependencies ?? {})) {
       const version = typeof spec === "string" ? spec.replace(/^[~^]/, "") : spec.version;
       out.push({ name, version, direct: true });
     }

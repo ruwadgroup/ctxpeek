@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { detectManifests, installSuggestion } from "../../src/lockfile.js";
+import { detectManifests, detectProjectManifests, installSuggestion } from "../../src/lockfile.js";
 
 async function tmpDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "docpilot-lockfile-"));
@@ -16,6 +16,8 @@ describe("detectManifests", () => {
       JSON.stringify({
         dependencies: { "drizzle-orm": "^0.30.1", react: "19.0.0" },
         devDependencies: { typescript: "5.6.3" },
+        optionalDependencies: { sharp: "^0.33.0" },
+        peerDependencies: { zod: "^3.23.0" },
       }),
     );
     const out = await detectManifests(dir, dir);
@@ -23,7 +25,7 @@ describe("detectManifests", () => {
     const m = out[0];
     expect(m?.ecosystem).toBe("npm");
     const names = m?.deps.map((d) => d.name).sort();
-    expect(names).toEqual(["drizzle-orm", "react", "typescript"]);
+    expect(names).toEqual(["drizzle-orm", "react", "sharp", "typescript", "zod"]);
   });
 
   it("parses requirements.txt", async () => {
@@ -62,6 +64,22 @@ describe("detectManifests", () => {
     const dir = await tmpDir();
     const out = await detectManifests(dir, dir);
     expect(out).toEqual([]);
+  });
+
+  it("detects current and ancestor manifests for project context", async () => {
+    const dir = await tmpDir();
+    const nested = path.join(dir, "packages", "app");
+    await fs.mkdir(nested, { recursive: true });
+    await fs.writeFile(path.join(dir, "package.json"), JSON.stringify({ dependencies: { react: "19.0.0" } }));
+    await fs.writeFile(
+      path.join(nested, "package.json"),
+      JSON.stringify({ dependencies: { "drizzle-orm": "^0.30.1" } }),
+    );
+    const out = await detectProjectManifests(nested, dir);
+    expect(out.map((m) => path.relative(dir, m.file)).sort()).toEqual([
+      "package.json",
+      "packages/app/package.json",
+    ]);
   });
 });
 

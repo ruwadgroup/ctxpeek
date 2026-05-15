@@ -1,9 +1,9 @@
 import * as path from "node:path";
 import { z } from "zod";
 import type { Ecosystem } from "../config.js";
-import { type DetectedManifest, detectManifests, installSuggestion, type LockedDep } from "../lockfile.js";
 import { type ResolutionCandidate, resolve } from "../resolve/orchestrator.js";
 import type { ToolContext } from "./context.js";
+import { findProjectManifestMatch, offerProjectInstall } from "./projectContext.js";
 
 export const resolveRepoInput = z.object({
   query: z.string().min(1),
@@ -14,8 +14,11 @@ export const resolveRepoInput = z.object({
 export type ResolveRepoInput = z.infer<typeof resolveRepoInput>;
 
 export type ResolveRepoStructured = {
+  readonly forge: string;
   readonly owner: string;
   readonly repo: string;
+  readonly repo_spec: string;
+  readonly subpath: string | null;
   readonly source: string;
   readonly stars: number | null;
   readonly default_branch: string | null;
@@ -24,6 +27,7 @@ export type ResolveRepoStructured = {
   readonly alternatives: ReadonlyArray<{
     owner: string;
     repo: string;
+    repo_spec: string;
     stars: number | null;
   }>;
 };
@@ -43,12 +47,14 @@ export function buildResolveRepoTool(ctx: ToolContext) {
     // "autotranslate" → `eJayYoung/autoTranslate` (random npm package) and
     // "autotranslate" → `tamimbinhakim/autotranslate` (the one the user
     // actually imports as `@autotranslate/*`).
-    const manifestHit = input.ecosystem ? null : await findManifestMatch(input.query).catch(() => null);
-    const resolveQuery = manifestHit?.depName ?? input.query;
+    const manifestHit = input.ecosystem
+      ? null
+      : await findProjectManifestMatch(input.query).catch(() => null);
+    const resolveQuery = manifestHit?.repoSpec ?? manifestHit?.depName ?? input.query;
     const resolveEcosystems = manifestHit ? [manifestHit.ecosystem] : defaultEcosystems;
 
     const raw = await resolve(
-      { rest: ctx.rest, graphql: ctx.graphql, http: ctx.http, logger: ctx.logger },
+      { rest: ctx.rest, forges: ctx.forges, graphql: ctx.graphql, http: ctx.http, logger: ctx.logger },
       resolveQuery,
       {
         ecosystems: resolveEcosystems,
@@ -68,15 +74,16 @@ export function buildResolveRepoTool(ctx: ToolContext) {
     // `latestTag` is no longer fetched eagerly in the resolver hot path; do
     // it here lazily through the 1-day cache. First call per repo per day
     // costs one /releases/latest hit, subsequent calls are free.
-    const result = raw.best.latestTag
-      ? raw
-      : {
-          ...raw,
-          best: {
-            ...raw.best,
-            latestTag: await ctx.rest.getLatestTag(raw.best.owner, raw.best.repo).catch(() => null),
-          },
-        };
+    const result =
+      raw.best.latestTag || raw.best.forge !== "github"
+        ? raw
+        : {
+            ...raw,
+            best: {
+              ...raw.best,
+              latestTag: await ctx.rest.getLatestTag(raw.best.owner, raw.best.repo).catch(() => null),
+            },
+          };
     if (!result.best) {
       return {
         markdown: renderNotFound(input.query),
@@ -116,77 +123,10 @@ export function buildResolveRepoTool(ctx: ToolContext) {
   };
 }
 
-type ManifestMatch = {
-  readonly depName: string;
-  readonly ecosystem: Ecosystem;
-  readonly manifestFile: string;
-};
-
-async function findManifestMatch(query: string): Promise<ManifestMatch | null> {
-  const manifests = await detectManifests(process.cwd());
-  if (manifests.length === 0) return null;
-  const normQuery = normaliseDepName(query);
-
-  // Exact normalised match (e.g. query "react" matches dep "react").
-  for (const m of manifests) {
-    for (const dep of m.deps) {
-      if (normaliseDepName(dep.name) === normQuery) {
-        return { depName: dep.name, ecosystem: m.ecosystem, manifestFile: m.file };
-      }
-    }
-  }
-
-  // Scope match (e.g. query "autotranslate" matches dep "@autotranslate/core").
-  // Prefer the alphabetically-first scoped package so the result is stable
-  // across pnpm/npm install order; the resolver will dedupe via repo URL.
-  const scopeMatches = collectScopeMatches(manifests, normQuery);
-  if (scopeMatches.length > 0) {
-    const first = [...scopeMatches].sort((a, b) => a.depName.localeCompare(b.depName))[0];
-    return first ?? null;
-  }
-
-  return null;
-}
-
-function collectScopeMatches(
-  manifests: ReadonlyArray<DetectedManifest>,
-  normQuery: string,
-): ReadonlyArray<ManifestMatch> {
-  const out: ManifestMatch[] = [];
-  for (const m of manifests) {
-    for (const dep of m.deps) {
-      const scope = scopeOf(dep.name);
-      if (scope && normaliseDepName(scope) === normQuery) {
-        out.push({ depName: dep.name, ecosystem: m.ecosystem, manifestFile: m.file });
-      }
-    }
-  }
-  return out;
-}
-
-function scopeOf(name: string): string | null {
-  if (!name.startsWith("@")) return null;
-  const slash = name.indexOf("/");
-  if (slash < 0) return null;
-  return name.slice(1, slash);
-}
-
 async function offerToInstall(query: string, best: ResolutionCandidate): Promise<string | null> {
   const ecosystem = bestEcosystem(best);
   if (!ecosystem) return null;
-  try {
-    const manifests = await detectManifests(process.cwd());
-    if (manifests.length === 0) return null;
-    const matching = manifests.find((m) => m.ecosystem === ecosystem);
-    if (!matching) return null;
-    const present = matching.deps.some(
-      (d: LockedDep) => normaliseDepName(d.name) === normaliseDepName(query),
-    );
-    if (present) return null;
-    return `> Not in your ${path.basename(matching.file)} — \`${installSuggestion(query, ecosystem)}\` to add it.`;
-  } catch {
-    return null;
-  }
+  return offerProjectInstall(query, ecosystem);
 }
 
 function bestEcosystem(c: ResolutionCandidate): Ecosystem | null {
@@ -204,10 +144,6 @@ function bestEcosystem(c: ResolutionCandidate): Ecosystem | null {
   }
 }
 
-function normaliseDepName(s: string): string {
-  return s.toLowerCase().replace(/[._-]/g, "");
-}
-
 function renderResolved(
   query: string,
   best: ResolutionCandidate,
@@ -217,7 +153,7 @@ function renderResolved(
   manifestNote: string | null,
 ): string {
   const lines: string[] = [];
-  const slug = `${best.owner}/${best.repo}`;
+  const slug = repoSpec(best);
   const tag = fromCache ? " (cached)" : "";
   lines.push(`# Resolved "${query}" → ${slug}  (${sourceLabel(best.source)} match${tag})`);
   lines.push("");
@@ -226,6 +162,7 @@ function renderResolved(
     lines.push("");
   }
   lines.push(`repo:    ${slug}`);
+  if (best.subpath) lines.push(`package: ${best.subpath}`);
   if (best.stars !== undefined) lines.push(`stars:   ${formatStars(best.stars)}`);
   if (best.defaultBranch) lines.push(`default: ${best.defaultBranch}`);
   if (best.latestTag) lines.push(`latest:  ${best.latestTag}`);
@@ -234,8 +171,8 @@ function renderResolved(
   // Hint the planner: prefer the latest tag when the user asked about a
   // specific version, so it doesn't waste a round-trip on the default branch
   // first then re-resolve to a tag.
-  const refHint = best.latestTag ? `@${best.latestTag}` : "";
-  lines.push(`Use: \`list_docs("${slug}${refHint}")\`, then \`fetch_doc("${slug}${refHint}", "<path>")\``);
+  const useSpec = repoSpec(best, best.latestTag);
+  lines.push(`Use: \`list_docs("${useSpec}")\`, then \`fetch_doc("${useSpec}", "<path>")\``);
   if (installSuggestionLine) {
     lines.push("");
     lines.push(installSuggestionLine);
@@ -243,7 +180,7 @@ function renderResolved(
   if (alts.length > 0) {
     lines.push("");
     lines.push("Alternative matches (lower confidence):");
-    for (const a of alts) lines.push(`- ${a.owner}/${a.repo}${a.description ? ` — ${a.description}` : ""}`);
+    for (const a of alts) lines.push(`- ${repoSpec(a)}${a.description ? ` — ${a.description}` : ""}`);
   }
   return lines.join("\n");
 }
@@ -262,20 +199,19 @@ function renderAmbiguous(
     lines.push(manifestNote);
     lines.push("");
   }
-  lines.push(
-    `Top: ${best.owner}/${best.repo}${best.stars !== undefined ? `  ★ ${formatStars(best.stars)}` : ""}`,
-  );
+  lines.push(`Top: ${repoSpec(best)}${best.stars !== undefined ? `  ★ ${formatStars(best.stars)}` : ""}`);
+  if (best.subpath) lines.push(`package: ${best.subpath}`);
   if (best.description) lines.push(`> ${best.description}`);
   if (alts.length > 0) {
     lines.push("");
     lines.push("Other candidates:");
     for (const a of alts) {
       const stars = a.stars !== undefined ? `  ★ ${formatStars(a.stars)}` : "";
-      lines.push(`- ${a.owner}/${a.repo}${stars}${a.description ? ` — ${a.description}` : ""}`);
+      lines.push(`- ${repoSpec(a)}${stars}${a.description ? ` — ${a.description}` : ""}`);
     }
   }
   lines.push("");
-  lines.push(`If the top match looks right, use: \`list_docs("${best.owner}/${best.repo}")\``);
+  lines.push(`If the top match looks right, use: \`list_docs("${repoSpec(best)}")\``);
   lines.push("Otherwise call `resolve_repo` again with a more specific query.");
   if (installSuggestionLine) {
     lines.push("");
@@ -312,6 +248,14 @@ function sourceLabel(s: ResolutionCandidate["source"]): string {
   return SOURCE_LABELS[s];
 }
 
+function repoSpec(c: ResolutionCandidate, ref?: string | null): string {
+  const slug = `${c.owner}/${c.repo}`;
+  const prefix = c.forge === "github" ? "" : `${c.forge}:`;
+  const refPart = ref ? `@${ref}` : "";
+  const subpath = c.subpath ? `#${c.subpath}` : "";
+  return `${prefix}${slug}${refPart}${subpath}`;
+}
+
 function formatStars(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return `${n}`;
@@ -322,8 +266,11 @@ function candidateToStructured(
   alts: ReadonlyArray<ResolutionCandidate>,
 ): ResolveRepoStructured {
   return {
+    forge: best.forge,
     owner: best.owner,
     repo: best.repo,
+    repo_spec: repoSpec(best),
+    subpath: best.subpath ?? null,
     source: best.source,
     stars: best.stars ?? null,
     default_branch: best.defaultBranch ?? null,
@@ -332,6 +279,7 @@ function candidateToStructured(
     alternatives: alts.map((a) => ({
       owner: a.owner,
       repo: a.repo,
+      repo_spec: repoSpec(a),
       stars: a.stars ?? null,
     })),
   };

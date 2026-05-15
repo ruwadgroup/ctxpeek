@@ -1,15 +1,44 @@
 import type { HttpClient } from "../util/index.js";
+import { type ExtractedRepo, extractRepo } from "./extractGithub.js";
+
+export type RegistryUrlField =
+  | "repository"
+  | "source"
+  | "source-code"
+  | "homepage"
+  | "bugs"
+  | "registry-search"
+  | "module"
+  | "other";
+
+export type RegistryCandidate = ExtractedRepo & {
+  readonly packageName: string;
+  readonly subpath?: string;
+  readonly registryUrl?: string;
+  readonly matchedUrl?: string;
+  readonly urlField: RegistryUrlField;
+  readonly confidence: number;
+};
+
+export type RegistryProbeResult = RegistryCandidate | ReadonlyArray<RegistryCandidate> | null;
 
 export type RegistryProbe = (
   name: string,
   http: HttpClient,
   timeoutMs?: number,
-) => Promise<{ owner: string; repo: string } | null>;
+) => Promise<RegistryProbeResult>;
+
+export type RegistrySearch = (
+  query: string,
+  http: HttpClient,
+  timeoutMs?: number,
+) => Promise<ReadonlyArray<RegistryCandidate>>;
 
 export type RegistryDefinition = {
   readonly id: string;
   readonly displayName?: string;
   readonly probe: RegistryProbe;
+  readonly search?: RegistrySearch;
 };
 
 const registry = new Map<string, RegistryDefinition>();
@@ -49,4 +78,34 @@ export function listRegistries(): ReadonlyArray<RegistryDefinition> {
 
 export function getRegistry(id: string): RegistryDefinition | undefined {
   return registry.get(id);
+}
+
+export function candidateFromUrl(input: {
+  readonly packageName: string;
+  readonly url: string | undefined | null;
+  readonly urlField: RegistryUrlField;
+  readonly confidence: number;
+  readonly registryUrl?: string;
+  readonly subpath?: string;
+}): RegistryCandidate | null {
+  const got = extractRepo(input.url);
+  if (!got) return null;
+  return {
+    ...got,
+    packageName: input.packageName,
+    ...(input.subpath !== undefined ? { subpath: cleanSubpath(input.subpath) } : {}),
+    ...(input.registryUrl !== undefined ? { registryUrl: input.registryUrl } : {}),
+    ...(input.url !== undefined && input.url !== null ? { matchedUrl: input.url } : {}),
+    urlField: input.urlField,
+    confidence: input.confidence,
+  };
+}
+
+export function normalizeProbeResult(result: RegistryProbeResult): ReadonlyArray<RegistryCandidate> {
+  if (!result) return [];
+  return Array.isArray(result) ? (result as ReadonlyArray<RegistryCandidate>) : [result as RegistryCandidate];
+}
+
+function cleanSubpath(subpath: string): string {
+  return subpath.replace(/^\/+/, "").replace(/\/+$/, "");
 }

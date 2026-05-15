@@ -18,6 +18,16 @@ export type RateLimitState = {
   readonly resetAt: Date | undefined;
 };
 
+export type RateLimitSnapshot = RateLimitState & {
+  readonly degraded: boolean;
+  readonly inflight: number;
+  readonly queued: number;
+  readonly bucketTokens: number;
+  readonly bucketCapacity: number;
+  readonly secondaryBudgetPerMinute: number;
+  readonly concurrentMax: number;
+};
+
 type PersistedState = {
   readonly remaining: number | null;
   readonly resetAt: string | null;
@@ -68,6 +78,21 @@ export class RateLimiter {
 
   state(): RateLimitState {
     return { remaining: this.latestRemaining, resetAt: this.latestResetAt };
+  }
+
+  snapshot(): RateLimitSnapshot {
+    this.refill();
+    return {
+      remaining: this.latestRemaining,
+      resetAt: this.latestResetAt,
+      degraded: this.degraded,
+      inflight: this.inflight,
+      queued: this.waiters.length,
+      bucketTokens: Number(this.bucketTokens.toFixed(2)),
+      bucketCapacity: this.perMinute,
+      secondaryBudgetPerMinute: this.perMinute,
+      concurrentMax: this.concurrentMax,
+    };
   }
 
   async acquire(): Promise<void> {

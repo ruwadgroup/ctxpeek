@@ -8,5 +8,6 @@ export * from "./getChanges.js";
 export * from "./getIssues.js";
 export * from "./listDocs.js";
 export * from "./peek.js";
+export * from "./rateLimits.js";
 export * from "./relatedRepos.js";
 export * from "./resolveRepo.js";

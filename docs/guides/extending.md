@@ -1,6 +1,6 @@
 # Extending docpilot
 
-docpilot ships three plug-in registries. Adding a new git forge, a new language's lockfile, or a new package-manager registry is **one file**.
+docpilot ships four plug-in registries. Adding a new git forge, a new language's lockfile, a package manifest verifier, or a package-manager registry is **one file**.
 
 The pattern is the same everywhere: a `define*(config)` factory self-registers with a global registry on module load. Add one line to the sibling `index.ts` barrel and the rest of docpilot picks it up automatically.
 
@@ -77,6 +77,33 @@ export const BUILT_IN_LOCKFILE_PARSERS = [/* ... */, swift] as const;
 
 ---
 
+## Add a package manifest verifier
+
+Drop a file into [`packages/docpilot/src/resolve/packageManifests/`](../../packages/docpilot/src/resolve/packageManifests/):
+
+```ts
+// packages/docpilot/src/resolve/packageManifests/swift.ts
+import { definePackageManifest } from "../definePackageManifest.js";
+
+export default definePackageManifest({
+  ecosystem: "swift",
+  filenames: ["Package.swift"],
+  candidateSubpaths: (packageName) => [`Packages/${packageName}`],
+  matches: (raw, packageName) => raw.includes(`name: "${packageName}"`),
+});
+```
+
+Add one line to [`packages/docpilot/src/resolve/packageManifests/index.ts`](../../packages/docpilot/src/resolve/packageManifests/index.ts):
+
+```ts
+import swift from "./swift.js";
+export const BUILT_IN_PACKAGE_MANIFESTS = [/* ... */, swift] as const;
+```
+
+The resolver uses this verifier as a positive signal after a registry candidate has been verified on its forge. It is not required for resolution, but it improves confidence and monorepo package targeting.
+
+---
+
 ## Add a new package-manager registry probe
 
 Drop a file into [`packages/docpilot/src/resolve/registries/`](../../packages/docpilot/src/resolve/registries/):
@@ -84,8 +111,7 @@ Drop a file into [`packages/docpilot/src/resolve/registries/`](../../packages/do
 ```ts
 // packages/docpilot/src/resolve/registries/maven.ts
 import { HttpClient } from "../../util/index.js";
-import { defineRegistry } from "../defineRegistry.js";
-import { extractGithub } from "../extractGithub.js";
+import { candidateFromUrl, defineRegistry } from "../defineRegistry.js";
 
 export default defineRegistry({
   id: "maven",
@@ -97,8 +123,14 @@ export default defineRegistry({
       `https://search.maven.org/solrsearch/select?q=${encodeURIComponent(name)}&rows=1`,
       init,
     );
-    const scm = res.data?.response?.docs?.[0]?.scm;
-    return extractGithub(scm);
+    const doc = res.data?.response?.docs?.[0];
+    return candidateFromUrl({
+      packageName: name,
+      url: doc?.scm,
+      urlField: "source-code",
+      confidence: 0.9,
+      registryUrl: "https://search.maven.org",
+    });
   },
 });
 ```

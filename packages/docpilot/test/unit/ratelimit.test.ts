@@ -22,6 +22,19 @@ describe("RateLimiter", () => {
     rl.observe({ "x-ratelimit-reset": "1717000000" });
     expect(rl.state().resetAt?.getTime()).toBe(1717000000 * 1000);
   });
+  it("exposes local limiter accounting as a snapshot", () => {
+    const rl = new RateLimiter(4, 30);
+    rl.observe({ "x-ratelimit-remaining": "120", "x-ratelimit-reset": "1717000000" });
+    expect(rl.snapshot()).toMatchObject({
+      remaining: 120,
+      degraded: false,
+      inflight: 0,
+      queued: 0,
+      bucketCapacity: 30,
+      secondaryBudgetPerMinute: 30,
+      concurrentMax: 4,
+    });
+  });
   it("rehydrates degraded state from disk when reset is still in the future", async () => {
     const file = await makeTempFile();
     const a = new RateLimiter();

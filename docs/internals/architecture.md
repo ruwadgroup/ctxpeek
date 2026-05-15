@@ -179,13 +179,14 @@ The boundary is: docpilot does not make a hosted corpus, resolver, ranking model
 
 ## Plug-in registries
 
-Three `define*` factories let contributors extend docpilot by adding **one file** — no other code in the repo needs to change. See [`docs/guides/extending.md`](../guides/extending.md) for end-to-end examples.
+Four `define*` factories let contributors extend docpilot by adding **one file** — no other code in the repo needs to change. See [`docs/guides/extending.md`](../guides/extending.md) for end-to-end examples.
 
-| Concern                                           | Helper                 | Files live in             |
-| ------------------------------------------------- | ---------------------- | ------------------------- |
-| Git forge (GitHub, GitLab, Bitbucket, Codeberg …) | `defineForge`          | `src/fetch/forges/`       |
-| Lockfile parser (npm, PyPI, crates, Swift …)      | `defineLockfileParser` | `src/lockfile/parsers/`   |
-| Registry probe (npm, PyPI, Maven, NuGet …)        | `defineRegistry`       | `src/resolve/registries/` |
+| Concern                                           | Helper                  | Files live in                   |
+| ------------------------------------------------- | ----------------------- | ------------------------------- |
+| Git forge (GitHub, GitLab, Bitbucket, Codeberg …) | `defineForge`           | `src/fetch/forges/`             |
+| Lockfile parser (npm, PyPI, crates, Swift …)      | `defineLockfileParser`  | `src/lockfile/parsers/`         |
+| Package manifest verifier (package.json, Cargo …) | `definePackageManifest` | `src/resolve/packageManifests/` |
+| Registry probe (npm, PyPI, Maven, NuGet …)        | `defineRegistry`        | `src/resolve/registries/`       |
 
 Each helper writes to a module-local `Map<string, Definition>`. Built-ins side-register on import. The respective `getX(id)` / `listX()` helpers expose the resulting registry to consumers.
 

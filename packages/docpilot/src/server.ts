@@ -35,6 +35,7 @@ import {
   buildGetIssuesTool,
   buildListDocsTool,
   buildPeekTool,
+  buildRateLimitsTool,
   buildRelatedReposTool,
   buildResolveRepoTool,
   cacheStatusInput,
@@ -44,6 +45,7 @@ import {
   getIssuesInput,
   listDocsInput,
   peekInput,
+  rateLimitsInput,
   relatedReposInput,
   resolveRepoInput,
   type ToolContext,
@@ -181,6 +183,12 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
   registerSimpleTool(server, "cache_status", cacheStatusInput, {
     description: "On-disk cache state. Pass `{ repo: 'owner/repo' }` for per-repo breakdown.",
     handler: buildCacheStatusTool(ctx),
+  });
+
+  registerSimpleTool(server, "rate_limits", rateLimitsInput, {
+    description:
+      "Show local rate-limit accounting and optionally query GitHub live limits with `{ live: true }`.",
+    handler: buildRateLimitsTool(ctx),
   });
 
   registerSimpleTool(server, "related_repos", relatedReposInput, {

@@ -8,6 +8,8 @@ export default defineLockfileParser({
     let json: {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
+      optionalDependencies?: Record<string, string>;
+      peerDependencies?: Record<string, string>;
     };
     try {
       json = JSON.parse(raw) as typeof json;
@@ -17,6 +19,8 @@ export default defineLockfileParser({
     const direct = new Map<string, string>();
     for (const [name, range] of Object.entries(json.dependencies ?? {})) direct.set(name, range);
     for (const [name, range] of Object.entries(json.devDependencies ?? {})) direct.set(name, range);
+    for (const [name, range] of Object.entries(json.optionalDependencies ?? {})) direct.set(name, range);
+    for (const [name, range] of Object.entries(json.peerDependencies ?? {})) direct.set(name, range);
 
     return [...direct].map(([name, range]) => ({
       name,

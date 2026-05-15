@@ -1,34 +1,42 @@
-// Resolver orchestrator — registry-first, GitHub-search last.
+// Resolver orchestrator - registry-first, GitHub-search last.
 
+import type { Forge } from "@docpilot/core";
 import type { Ecosystem } from "../config.js";
+import { type ForgeRegistry, pickForge } from "../fetch/forgeClient.js";
 import type { GithubGraphqlClient } from "../fetch/githubGraphql.js";
-import type { GithubRestClient } from "../fetch/githubRest.js";
+import type { GithubRestClient, RepoMetadata } from "../fetch/githubRest.js";
+import { type HttpClient, type Logger, TimeoutError, withTimeout } from "../util/index.js";
 import {
-  type HttpClient,
-  type Logger,
-  raceUntil,
-  readJson,
-  TimeoutError,
-  updateJson,
-  withTimeout,
-} from "../util/index.js";
-import { getRegistry, type RegistryProbe } from "./defineRegistry.js";
+  getRegistry,
+  normalizeProbeResult,
+  type RegistryCandidate,
+  type RegistryProbe,
+  type RegistrySearch,
+} from "./defineRegistry.js";
 import { type SearchHit, searchGithub } from "./githubSearch.js";
+import { hasMatchingPackageManifest } from "./packageManifest.js";
 import { BUILT_IN_REGISTRIES } from "./registries/index.js";
+import { readResolution, recordToCandidate, writeResolution } from "./resolutionCache.js";
 
 // Touching the array keeps the imports "used"; each module already
 // registered itself with `defineRegistry` on evaluation.
 void BUILT_IN_REGISTRIES;
 
 export type ResolutionCandidate = {
+  readonly forge: Forge;
   readonly owner: string;
   readonly repo: string;
+  readonly subpath?: string;
   readonly source: "cache" | Ecosystem | "github-search" | "literal";
   readonly stars?: number;
   readonly description?: string | null;
   readonly defaultBranch?: string;
   readonly latestTag?: string | null;
   readonly confidence: number;
+  readonly registryPackage?: string;
+  readonly registryUrl?: string;
+  readonly urlField?: string;
+  readonly manifestMatch?: boolean;
 };
 
 export type ResolutionResult = {
@@ -49,36 +57,16 @@ export type ResolverOptions = {
 
 export type ResolverContext = {
   readonly rest: GithubRestClient;
+  readonly forges: ForgeRegistry;
   readonly graphql: GithubGraphqlClient | null;
   readonly http: HttpClient;
   readonly logger: Logger;
 };
 
-type ResolutionRecord = {
-  readonly query: string;
-  readonly owner: string;
-  readonly repo: string;
-  readonly source: ResolutionCandidate["source"];
-  readonly stars: number | null;
-  readonly defaultBranch: string | null;
-  readonly description: string | null;
-  readonly latestTag: string | null;
-  readonly confidence: number;
-  readonly storedAt: string;
+type RegistryHit = RegistryCandidate & {
+  readonly source: Ecosystem;
+  readonly matchedQuery: string;
 };
-
-type ResolutionsFile = {
-  readonly version: number;
-  readonly entries: Record<string, ResolutionRecord>;
-  readonly updatedAt: string;
-};
-
-const RESOLUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-// v1 stored only owner/repo/source — no stars, no confidence. v2 stores the
-// verified GitHub metadata and the original confidence so cache hits don't
-// silently elevate weak signals to 0.99.
-const RESOLUTION_CACHE_VERSION = 2;
 
 // When the top GitHub-search hit has this many times more stars than the
 // registry-resolved winner, mark the result as ambiguous so the planner can
@@ -93,54 +81,28 @@ export async function resolve(
 ): Promise<ResolutionResult> {
   const normalized = query.trim();
   if (!normalized) {
-    return {
-      query,
-      best: undefined,
-      alternatives: [],
-      ambiguous: false,
-      fromCache: false,
-    };
+    return emptyResult(query, false);
   }
 
-  if (LITERAL_RE.test(normalized)) {
-    const [owner, repo] = normalized.split("/") as [string, string];
-    try {
-      const meta = await ctx.rest.getRepo(owner, repo);
-      return {
-        query,
-        best: {
-          owner: meta.owner,
-          repo: meta.repo,
-          source: "literal",
-          stars: meta.stars,
-          description: meta.description,
-          defaultBranch: meta.defaultBranch,
-          latestTag: meta.latestTag,
-          confidence: 1,
-        },
-        alternatives: [],
-        ambiguous: false,
-        fromCache: false,
-      };
-    } catch (err) {
-      // 404 here means the literal slug doesn't exist; surface a hard miss
-      // instead of falling through to GitHub search (which would silently
-      // return a different repo and confuse the caller).
-      const isNotFound = err instanceof Error && err.name === "NotFoundError";
-      if (isNotFound) {
-        return {
-          query,
-          best: undefined,
-          alternatives: [],
-          ambiguous: false,
-          fromCache: false,
-        };
-      }
+  const literal = parseLiteralSpec(normalized);
+  if (literal) {
+    const verified = await verifyLiteral(ctx, literal).catch((err) => {
       ctx.logger.debug("resolve: literal lookup failed", {
         query,
         err: String(err),
       });
+      return null;
+    });
+    if (verified) {
+      return {
+        query,
+        best: verified,
+        alternatives: [],
+        ambiguous: false,
+        fromCache: false,
+      };
     }
+    return emptyResult(query, false);
   }
 
   if (!opts.forceRefresh) {
@@ -148,137 +110,168 @@ export async function resolve(
     if (cached) {
       return {
         query,
-        best: {
-          owner: cached.owner,
-          repo: cached.repo,
-          source: cached.source,
-          ...(cached.stars !== null ? { stars: cached.stars } : {}),
-          ...(cached.defaultBranch !== null ? { defaultBranch: cached.defaultBranch } : {}),
-          description: cached.description,
-          latestTag: cached.latestTag,
-          confidence: cached.confidence,
-        },
-        alternatives: [],
-        ambiguous: false,
+        best: recordToCandidate(cached.best),
+        alternatives: cached.alternatives.map(recordToCandidate),
+        ambiguous: cached.ambiguous,
         fromCache: true,
       };
     }
   }
 
+  const timeoutMs = opts.perProbeTimeoutMs ?? 1500;
   const variants = nameVariants(normalized);
-  const probes: Array<
-    Promise<{
-      owner: string;
-      repo: string;
-      source: ResolutionCandidate["source"];
-    } | null>
-  > = [];
-  for (const variant of variants) {
-    for (const eco of opts.ecosystems) {
-      probes.push(runProbe(ctx, eco, variant, opts.perProbeTimeoutMs ?? 1500));
-    }
-  }
+  const directHits = await collectRegistryProbeHits(ctx, opts.ecosystems, variants, timeoutMs);
+  const directResult = await resolveRegistryHits(ctx, normalized, directHits, opts);
+  if (directResult) return directResult;
 
-  const winner = await raceUntil(probes, (v) => Boolean(v));
-  if (winner) {
-    const verified = await verifyAndEnrich(ctx, winner);
-    if (verified) {
-      // Skip the side-channel GitHub search when the verified registry hit
-      // is already popular enough to dominate any plausible alternative.
-      // GitHub's /search/* lives on the 30-req/min bucket — burning a call
-      // here for every confident resolve is the largest single contributor
-      // to rate-limit pressure.
-      const popular = (verified.stars ?? 0) >= 50;
-      const ghHits =
-        popular || !opts.githubSearchFallback
-          ? ([] as ReadonlyArray<SearchHit>)
-          : await searchGithub(ctx.rest, ctx.graphql, normalized, 5).catch((err) => {
-              ctx.logger.debug("resolve: github search side-channel failed", { err: String(err) });
-              return [] as ReadonlyArray<SearchHit>;
-            });
-      const alts = ghHits
-        .filter((h) => !(h.owner === verified.owner && h.repo === verified.repo))
-        .slice(0, 4)
-        .map(toCandidate);
-      const topAlt = alts[0];
-      // Only flag ambiguous when the verified winner looks weak (< 50 stars)
-      // AND a GH-search alternative dominates it. Otherwise a popular,
-      // well-established repo can get false-flagged because an unrelated
-      // higher-starred project happened to share a keyword.
-      const verifiedStars = verified.stars ?? 0;
-      const ambiguous = Boolean(
-        verifiedStars < 50 &&
-          topAlt &&
-          topAlt.stars !== undefined &&
-          topAlt.stars > AMBIGUITY_STAR_RATIO * Math.max(1, verifiedStars),
-      );
-      await writeResolution(opts.cacheFile, normalized, verified);
-      return {
-        query,
-        best: verified,
-        alternatives: alts,
-        ambiguous,
-        fromCache: false,
-      };
-    }
-    // Verification failed (404 or transient) — fall through to GH search.
-    ctx.logger.debug("resolve: winner verification failed, falling through", {
-      query,
-      winner,
-    });
-  }
+  const searchHits = await collectRegistrySearchHits(ctx, opts.ecosystems, normalized, timeoutMs);
+  const registrySearchResult = await resolveRegistryHits(ctx, normalized, searchHits, opts);
+  if (registrySearchResult) return registrySearchResult;
 
   if (!opts.githubSearchFallback) {
-    return {
-      query,
-      best: undefined,
-      alternatives: [],
-      ambiguous: false,
-      fromCache: false,
-    };
+    return emptyResult(query, false);
   }
+  return resolveGithubSearch(ctx, normalized, opts);
+}
 
+function emptyResult(query: string, fromCache: boolean): ResolutionResult {
+  return {
+    query,
+    best: undefined,
+    alternatives: [],
+    ambiguous: false,
+    fromCache,
+  };
+}
+
+async function verifyLiteral(ctx: ResolverContext, spec: LiteralSpec): Promise<ResolutionCandidate | null> {
+  try {
+    const meta = await getRepoMetadata(ctx, spec.forge, spec.owner, spec.repo);
+    return {
+      forge: spec.forge,
+      owner: meta.owner,
+      repo: meta.repo,
+      ...(spec.subpath !== undefined ? { subpath: spec.subpath } : {}),
+      source: "literal",
+      stars: meta.stars,
+      description: meta.description,
+      defaultBranch: meta.defaultBranch,
+      latestTag: meta.latestTag,
+      confidence: 1,
+    };
+  } catch (err) {
+    const isNotFound = err instanceof Error && err.name === "NotFoundError";
+    if (isNotFound) return null;
+    throw err;
+  }
+}
+
+async function collectRegistryProbeHits(
+  ctx: ResolverContext,
+  ecosystems: ReadonlyArray<Ecosystem>,
+  variants: ReadonlyArray<string>,
+  timeoutMs: number,
+): Promise<ReadonlyArray<RegistryHit>> {
+  const probes: Array<Promise<ReadonlyArray<RegistryHit>>> = [];
+  for (const variant of variants) {
+    for (const eco of ecosystems) {
+      probes.push(runProbe(ctx, eco, variant, timeoutMs));
+    }
+  }
+  return (await Promise.all(probes)).flat();
+}
+
+async function collectRegistrySearchHits(
+  ctx: ResolverContext,
+  ecosystems: ReadonlyArray<Ecosystem>,
+  query: string,
+  timeoutMs: number,
+): Promise<ReadonlyArray<RegistryHit>> {
+  const searches = ecosystems.map((eco) => runRegistrySearch(ctx, eco, query, timeoutMs));
+  return (await Promise.all(searches)).flat();
+}
+
+async function resolveRegistryHits(
+  ctx: ResolverContext,
+  query: string,
+  hits: ReadonlyArray<RegistryHit>,
+  opts: ResolverOptions,
+): Promise<ResolutionResult | null> {
+  const rankedHits = dedupeRegistryHits(query, hits).slice(0, 10);
+  if (rankedHits.length === 0) return null;
+
+  const verified = (
+    await Promise.all(
+      rankedHits.map(async (hit) => {
+        const enriched = await verifyAndEnrich(ctx, hit);
+        if (!enriched) return null;
+        const manifestMatch = await hasMatchingPackageManifest(ctx, enriched, hit).catch(() => false);
+        return scoreRegistryCandidate(query, enriched, hit, manifestMatch);
+      }),
+    )
+  )
+    .filter((c): c is ResolutionCandidate => Boolean(c))
+    .sort(compareCandidates);
+
+  const best = verified[0];
+  if (!best) return null;
+
+  // Skip the side-channel GitHub search when the verified registry hit is
+  // already popular enough to dominate any plausible alternative.
+  const popular = best.forge === "github" && (best.stars ?? 0) >= 50;
+  const ghHits =
+    popular || !opts.githubSearchFallback
+      ? ([] as ReadonlyArray<SearchHit>)
+      : await searchGithub(ctx.rest, ctx.graphql, query, 5).catch((err) => {
+          ctx.logger.debug("resolve: github search side-channel failed", { err: String(err) });
+          return [] as ReadonlyArray<SearchHit>;
+        });
+  const ghAlts = ghHits
+    .filter((h) => !sameRepo(h, best))
+    .slice(0, 4)
+    .map((h) => toCandidate(h, 0.5));
+  const registryAlts = verified.slice(1);
+  const alternatives = dedupeCandidates([...registryAlts, ...ghAlts], best).slice(0, 4);
+  const ambiguous = isRegistryAmbiguous(best, registryAlts[0], ghAlts[0]);
+
+  await writeResolution(opts.cacheFile, query, best, alternatives, ambiguous);
+  return {
+    query,
+    best,
+    alternatives,
+    ambiguous,
+    fromCache: false,
+  };
+}
+
+async function resolveGithubSearch(
+  ctx: ResolverContext,
+  normalized: string,
+  opts: ResolverOptions,
+): Promise<ResolutionResult> {
   const hits = await searchGithub(ctx.rest, ctx.graphql, normalized, 5).catch((err) => {
     ctx.logger.debug("resolve: github search failed", { err: String(err) });
     return [] as ReadonlyArray<SearchHit>;
   });
 
   if (hits.length === 0) {
-    return {
-      query,
-      best: undefined,
-      alternatives: [],
-      ambiguous: false,
-      fromCache: false,
-    };
+    return emptyResult(normalized, false);
   }
 
   const ranked = [...hits].sort((a, b) => b.stars - a.stars);
   const first = ranked[0];
-  if (!first)
-    return {
-      query,
-      best: undefined,
-      alternatives: [],
-      ambiguous: false,
-      fromCache: false,
-    };
+  if (!first) return emptyResult(normalized, false);
   const second = ranked[1];
   const dominant = !second || first.stars > 10 * Math.max(1, second.stars);
-  // GH-search hits don't include the latest release tag. Use the 1-day
-  // cached path so back-to-back resolves of trending repos don't keep
-  // hitting /releases/latest. First caller per day takes the round-trip;
-  // everyone else gets a cache hit.
   const latestTag = await ctx.rest.getLatestTag(first.owner, first.repo).catch(() => null);
-  // A 100k-star repo with the exact name shouldn't surface as 0.55 just
-  // because a similarly-named but unrelated repo also has stars. If the
-  // winner clears 5k stars, treat it as confident regardless of the alt
-  // ratio. (The model can still consult `alternatives[]` to second-guess.)
+
   let confidence: number;
   if (dominant) confidence = 0.85;
   else if (first.stars >= 5000) confidence = 0.9;
   else confidence = 0.55;
+
   const candidate: ResolutionCandidate = {
+    forge: "github",
     owner: first.owner,
     repo: first.repo,
     source: "github-search",
@@ -288,54 +281,69 @@ export async function resolve(
     latestTag,
     confidence,
   };
+  const alternatives = ranked.slice(1, 5).map((hit) => toCandidate(hit, 0.5));
+  const ambiguous = !(dominant || first.stars >= 5000);
 
-  // Treat dominant OR popular-enough winners as confident: cache + return.
-  // Only flag ambiguous when the winner is both not-dominant AND not popular.
-  if (dominant || first.stars >= 5000) {
-    await writeResolution(opts.cacheFile, normalized, candidate);
-    return {
-      query,
-      best: candidate,
-      alternatives: ranked.slice(1, 5).map(toCandidate),
-      ambiguous: false,
-      fromCache: false,
-    };
-  }
-
+  await writeResolution(opts.cacheFile, normalized, candidate, alternatives, ambiguous);
   return {
-    query,
+    query: normalized,
     best: candidate,
-    alternatives: ranked.slice(1, 5).map(toCandidate),
-    ambiguous: true,
+    alternatives,
+    ambiguous,
     fromCache: false,
   };
 }
 
-const LITERAL_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/;
+type LiteralSpec = {
+  readonly forge: Forge;
+  readonly owner: string;
+  readonly repo: string;
+  readonly subpath?: string;
+};
+
+const LITERAL_RE =
+  /^(?:(github|gh|gitlab|gl|bitbucket|bb):)?([A-Za-z0-9][\w.-]*)\/([A-Za-z0-9][\w.-]*)(?:#(.+))?$/;
+
+const FORGE_ALIASES = {
+  github: "github",
+  gh: "github",
+  gitlab: "gitlab",
+  gl: "gitlab",
+  bitbucket: "bitbucket",
+  bb: "bitbucket",
+} as const satisfies Record<string, Forge>;
+
+function parseLiteralSpec(q: string): LiteralSpec | null {
+  const m = LITERAL_RE.exec(q);
+  if (!m?.[2] || !m[3]) return null;
+  const forge = m[1] ? FORGE_ALIASES[m[1].toLowerCase() as keyof typeof FORGE_ALIASES] : "github";
+  return {
+    forge,
+    owner: m[2],
+    repo: m[3],
+    ...(m[4] ? { subpath: m[4].replace(/^\/+/, "").replace(/\/+$/, "") } : {}),
+  };
+}
 
 function nameVariants(q: string): string[] {
-  const out = new Set<string>([q.toLowerCase()]);
-  out.add(q.toLowerCase().replace(/\s+/g, "-"));
-  out.add(q.toLowerCase().replace(/\s+/g, ""));
-  if (!q.endsWith("css") && q.toLowerCase() === "tailwind") out.add("tailwindcss");
+  const lower = q.toLowerCase();
+  const out = new Set<string>([lower]);
+  out.add(lower.replace(/\s+/g, "-"));
+  out.add(lower.replace(/\s+/g, ""));
+  if (!lower.endsWith("css") && lower === "tailwind") out.add("tailwindcss");
   return [...out];
 }
 
-function toCandidate(h: {
-  owner: string;
-  repo: string;
-  stars: number;
-  description: string | null;
-  defaultBranch: string;
-}): ResolutionCandidate {
+function toCandidate(h: SearchHit, confidence: number): ResolutionCandidate {
   return {
+    forge: "github",
     owner: h.owner,
     repo: h.repo,
     source: "github-search",
     stars: h.stars,
     description: h.description,
     defaultBranch: h.defaultBranch,
-    confidence: 0.5,
+    confidence,
   };
 }
 
@@ -344,22 +352,44 @@ async function runProbe(
   eco: Ecosystem,
   name: string,
   timeoutMs: number,
-): Promise<{
-  owner: string;
-  repo: string;
-  source: ResolutionCandidate["source"];
-} | null> {
+): Promise<ReadonlyArray<RegistryHit>> {
   const probe = pickProbe(eco);
-  if (!probe) return null;
+  if (!probe) return [];
   try {
     const result = await withTimeout(probe(name, ctx.http, timeoutMs), timeoutMs + 250);
-    if (!result) return null;
-    return { ...result, source: eco };
+    return normalizeProbeResult(result).map((candidate) => ({
+      ...candidate,
+      source: eco,
+      matchedQuery: name,
+    }));
   } catch (err) {
     if (!(err instanceof TimeoutError)) {
       ctx.logger.debug("resolve: probe failed", { eco, name, err: String(err) });
     }
-    return null;
+    return [];
+  }
+}
+
+async function runRegistrySearch(
+  ctx: ResolverContext,
+  eco: Ecosystem,
+  query: string,
+  timeoutMs: number,
+): Promise<ReadonlyArray<RegistryHit>> {
+  const search = pickSearch(eco);
+  if (!search) return [];
+  try {
+    const result = await withTimeout(search(query, ctx.http, timeoutMs), timeoutMs + 250);
+    return result.map((candidate) => ({
+      ...candidate,
+      source: eco,
+      matchedQuery: query,
+    }));
+  } catch (err) {
+    if (!(err instanceof TimeoutError)) {
+      ctx.logger.debug("resolve: registry search failed", { eco, query, err: String(err) });
+    }
+    return [];
   }
 }
 
@@ -367,75 +397,145 @@ function pickProbe(eco: Ecosystem): RegistryProbe | null {
   return getRegistry(eco)?.probe ?? null;
 }
 
-async function verifyAndEnrich(
-  ctx: ResolverContext,
-  c: {
-    readonly owner: string;
-    readonly repo: string;
-    readonly source: ResolutionCandidate["source"];
-  },
-): Promise<ResolutionCandidate | null> {
+function pickSearch(eco: Ecosystem): RegistrySearch | null {
+  return getRegistry(eco)?.search ?? null;
+}
+
+async function verifyAndEnrich(ctx: ResolverContext, hit: RegistryHit): Promise<ResolutionCandidate | null> {
   try {
-    // getRepo() is cached for 7 days and dedupes concurrent callers, so a
-    // verify-after-probe-win is essentially free after the first session.
-    // latestTag is intentionally left null here; planner-facing renderers
-    // call rest.getLatestTag() lazily when they actually need a ref hint.
-    const meta = await ctx.rest.getRepo(c.owner, c.repo);
+    const meta = await getRepoMetadata(ctx, hit.forge, hit.owner, hit.repo);
     return {
+      forge: hit.forge,
       owner: meta.owner,
       repo: meta.repo,
-      source: c.source,
+      ...(hit.subpath !== undefined ? { subpath: hit.subpath } : {}),
+      source: hit.source,
       stars: meta.stars,
       description: meta.description,
       defaultBranch: meta.defaultBranch,
       latestTag: meta.latestTag,
-      confidence: 0.95,
+      confidence: hit.confidence,
+      registryPackage: hit.packageName,
+      ...(hit.registryUrl !== undefined ? { registryUrl: hit.registryUrl } : {}),
+      urlField: hit.urlField,
     };
   } catch (err) {
     ctx.logger.debug("resolve: getRepo verification failed", {
-      candidate: `${c.owner}/${c.repo}`,
+      candidate: `${hit.forge}:${hit.owner}/${hit.repo}`,
       err: String(err),
     });
     return null;
   }
 }
 
-async function readResolution(filePath: string, key: string): Promise<ResolutionRecord | null> {
-  const data = await readJson<ResolutionsFile>(filePath);
-  if (!data?.entries) return null;
-  if (data.version !== RESOLUTION_CACHE_VERSION) return null;
-  const entry = data.entries[key];
-  if (!entry) return null;
-  const age = Date.now() - Date.parse(entry.storedAt);
-  if (age > RESOLUTION_TTL_MS) return null;
-  return entry;
+async function getRepoMetadata(
+  ctx: ResolverContext,
+  forge: Forge,
+  owner: string,
+  repo: string,
+): Promise<RepoMetadata> {
+  if (forge === "github") return ctx.rest.getRepo(owner, repo);
+  return pickForge(ctx.forges, forge).getRepo(owner, repo);
 }
 
-async function writeResolution(
-  filePath: string,
+function scoreRegistryCandidate(
   query: string,
   candidate: ResolutionCandidate,
-): Promise<void> {
-  await updateJson<ResolutionsFile>(filePath, (current) => {
-    const existing = current?.version === RESOLUTION_CACHE_VERSION ? (current.entries ?? {}) : {};
-    return {
-      version: RESOLUTION_CACHE_VERSION,
-      entries: {
-        ...existing,
-        [query]: {
-          query,
-          owner: candidate.owner,
-          repo: candidate.repo,
-          source: candidate.source,
-          stars: candidate.stars ?? null,
-          defaultBranch: candidate.defaultBranch ?? null,
-          description: candidate.description ?? null,
-          latestTag: candidate.latestTag ?? null,
-          confidence: candidate.confidence,
-          storedAt: new Date().toISOString(),
-        },
-      },
-      updatedAt: new Date().toISOString(),
-    };
-  });
+  hit: RegistryHit,
+  manifestMatch: boolean,
+): ResolutionCandidate {
+  let confidence = hit.confidence;
+  const queryNames = new Set(nameVariants(query).map(normalizeName));
+  const packageName = normalizeName(hit.packageName);
+  const packageLeaf = normalizeName(leafName(hit.packageName));
+  if (queryNames.has(packageName)) confidence += 0.04;
+  else if (queryNames.has(packageLeaf)) confidence += 0.02;
+  if (manifestMatch) confidence += 0.06;
+  if (namesEqual(candidate.repo, leafName(hit.packageName))) confidence += 0.015;
+  confidence += Math.min(0.04, Math.log10((candidate.stars ?? 0) + 1) / 100);
+
+  return {
+    ...candidate,
+    confidence: clampConfidence(confidence),
+    manifestMatch,
+  };
+}
+
+function dedupeRegistryHits(query: string, hits: ReadonlyArray<RegistryHit>): ReadonlyArray<RegistryHit> {
+  const byRepo = new Map<string, RegistryHit>();
+  for (const hit of hits) {
+    const key = repoKey(hit);
+    const prev = byRepo.get(key);
+    if (!prev || preliminaryScore(query, hit) > preliminaryScore(query, prev)) {
+      byRepo.set(key, hit);
+    }
+  }
+  return [...byRepo.values()].sort((a, b) => preliminaryScore(query, b) - preliminaryScore(query, a));
+}
+
+function preliminaryScore(query: string, hit: RegistryHit): number {
+  const exact = nameVariants(query).some((v) => normalizeName(v) === normalizeName(hit.packageName));
+  return hit.confidence + (exact ? 0.04 : 0);
+}
+
+function compareCandidates(a: ResolutionCandidate, b: ResolutionCandidate): number {
+  if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+  return (b.stars ?? 0) - (a.stars ?? 0);
+}
+
+function dedupeCandidates(
+  candidates: ReadonlyArray<ResolutionCandidate>,
+  best: ResolutionCandidate,
+): ReadonlyArray<ResolutionCandidate> {
+  const out: ResolutionCandidate[] = [];
+  const seen = new Set<string>([repoKey(best)]);
+  for (const candidate of [...candidates].sort(compareCandidates)) {
+    const key = repoKey(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+  return out;
+}
+
+function isRegistryAmbiguous(
+  best: ResolutionCandidate,
+  registryAlt: ResolutionCandidate | undefined,
+  githubAlt: ResolutionCandidate | undefined,
+): boolean {
+  const closeRegistryAlt = Boolean(registryAlt && registryAlt.confidence >= best.confidence - 0.06);
+  const bestStars = best.forge === "github" ? (best.stars ?? 0) : 0;
+  const starAmbiguous = Boolean(
+    bestStars < 50 &&
+      githubAlt?.stars !== undefined &&
+      githubAlt.stars > AMBIGUITY_STAR_RATIO * Math.max(1, bestStars),
+  );
+  return closeRegistryAlt || starAmbiguous;
+}
+
+function sameRepo(a: { forge?: Forge; owner: string; repo: string }, b: ResolutionCandidate): boolean {
+  return (a.forge ?? "github") === b.forge && repoKey(a) === repoKey(b);
+}
+
+function repoKey(c: { forge?: Forge; owner: string; repo: string }): string {
+  return `${c.forge ?? "github"}:${c.owner.toLowerCase()}/${c.repo.toLowerCase()}`;
+}
+
+function leafName(name: string): string {
+  return name.split("/").filter(Boolean).pop() ?? name;
+}
+
+function normalizeName(s: string | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .replace(/^@/, "")
+    .replace(/[\s._-]/g, "");
+}
+
+function namesEqual(a: string | undefined, b: string | undefined): boolean {
+  return Boolean(a && b && normalizeName(a) === normalizeName(b));
+}
+
+function clampConfidence(n: number): number {
+  return Math.min(0.99, Math.max(0.5, Number(n.toFixed(3))));
 }
