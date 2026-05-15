@@ -1,18 +1,18 @@
 # Caching
 
-docpilot keeps everything on disk. No in-memory daemon, no background process, no shared state across server instances.
+ctxpeek keeps everything on disk. No in-memory daemon, no background process, no shared state across server instances.
 
 ## Where
 
-The cache lives at `env-paths('docpilot').cache`, which resolves to:
+The cache lives at `env-paths('ctxpeek').cache`, which resolves to:
 
-| OS      | Default path                    |
-| ------- | ------------------------------- |
-| macOS   | `~/Library/Caches/docpilot`     |
-| Linux   | `~/.cache/docpilot` (XDG)       |
-| Windows | `%LOCALAPPDATA%\docpilot\Cache` |
+| OS      | Default path                   |
+| ------- | ------------------------------ |
+| macOS   | `~/Library/Caches/ctxpeek`     |
+| Linux   | `~/.cache/ctxpeek` (XDG)       |
+| Windows | `%LOCALAPPDATA%\ctxpeek\Cache` |
 
-Override with `--cache-dir <path>` or `[cache] dir = "..."` in `.docpilot.toml`.
+Override with `--cache-dir <path>` or `[cache] dir = "..."` in `.ctxpeek.toml`.
 
 ## What
 
@@ -46,19 +46,19 @@ Blob entries are keyed by `sha256(forge:commit_sha:path)`. That keeps reads simp
 Force a GC pass:
 
 ```bash
-npx -y docpilot cache gc
+npx -y ctxpeek cache gc
 ```
 
 Inspect cache state:
 
 ```bash
-npx -y docpilot cache status
-npx -y docpilot cache status vercel/next.js
+npx -y ctxpeek cache status
+npx -y ctxpeek cache status vercel/next.js
 ```
 
 ## Concurrency
 
-A single docpilot server is a single process; multiple clients calling the same server share a process. Multiple processes (one per MCP client) coordinate via filesystem advisory locks (`proper-lockfile`) — single-writer per snapshot, lock-free reads.
+A single ctxpeek server is a single process; multiple clients calling the same server share a process. Multiple processes (one per MCP client) coordinate via filesystem advisory locks (`proper-lockfile`) — single-writer per snapshot, lock-free reads.
 
 ## Freshness model
 

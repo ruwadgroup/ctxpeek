@@ -1,6 +1,6 @@
 # Getting started
 
-From "no docpilot installed" to "my coding assistant pulled fresh Drizzle ORM docs into the chat" in five minutes.
+From "no ctxpeek installed" to "my coding assistant pulled fresh Drizzle ORM docs into the chat" in five minutes.
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@ From "no docpilot installed" to "my coding assistant pulled fresh Drizzle ORM do
 - An MCP-capable client: Claude Desktop, Claude Code, Cursor, Windsurf, VS Code, or Codex CLI
 - Optional but recommended: a [GitHub Personal Access Token](https://github.com/settings/tokens) with `Contents: Read` scope (fine-grained PAT is enough for public repos)
 
-## 1. Add docpilot to your MCP client
+## 1. Add ctxpeek to your MCP client
 
 ### Claude Desktop & Claude Code
 
@@ -17,9 +17,9 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 ```jsonc
 {
   "mcpServers": {
-    "docpilot": {
+    "ctxpeek": {
       "command": "npx",
-      "args": ["-y", "docpilot"],
+      "args": ["-y", "ctxpeek"],
       "env": {
         "GITHUB_TOKEN": "ghp_…"
       }
@@ -28,7 +28,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 }
 ```
 
-Restart the client. The docpilot tools should appear in the tool list within a few seconds.
+Restart the client. The ctxpeek tools should appear in the tool list within a few seconds.
 
 ### Cursor
 
@@ -37,9 +37,9 @@ Edit `~/.cursor/mcp.json`:
 ```jsonc
 {
   "mcpServers": {
-    "docpilot": {
+    "ctxpeek": {
       "command": "npx",
-      "args": ["-y", "docpilot"]
+      "args": ["-y", "ctxpeek"]
     }
   }
 }
@@ -52,10 +52,10 @@ Add to `mcp.servers` in your settings:
 ```jsonc
 {
   "mcp.servers": {
-    "docpilot": {
+    "ctxpeek": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "docpilot"]
+      "args": ["-y", "ctxpeek"]
     }
   }
 }
@@ -64,7 +64,7 @@ Add to `mcp.servers` in your settings:
 ### Codex CLI
 
 ```bash
-codex mcp add docpilot -- npx -y docpilot
+codex mcp add ctxpeek -- npx -y ctxpeek
 ```
 
 ### Windsurf
@@ -74,19 +74,19 @@ Same `mcpServers` JSON shape as Claude Desktop / Cursor.
 ## 2. Verify the install
 
 ```bash
-npx -y docpilot doctor
+npx -y ctxpeek doctor
 ```
 
 Expected output (abridged):
 
 ```text
-# docpilot doctor
+# ctxpeek doctor
 
 Platform: darwin 24.x.x / Node 20.18.0
 
 ✓ Node.js — 20.18.0
 ✓ npx on PATH — /usr/local/bin/npx
-✓ Cache dir writable — /Users/you/Library/Caches/docpilot
+✓ Cache dir writable — /Users/you/Library/Caches/ctxpeek
 ✓ GitHub token — from $GITHUB_TOKEN — login=you, scopes=(fine-grained PAT) — public repos only
 ✓ api.github.com reachable
 ✓ cdn.jsdelivr.net reachable
@@ -120,20 +120,20 @@ You'll see the tool calls fire in the client UI; the model now has fresh, versio
 
 ## 4. (Optional) Pre-warm a stack
 
-If you work in a stable stack, pre-warm the cache with `docpilot warm`:
+If you work in a stable stack, pre-warm the cache with `ctxpeek warm`:
 
 ```bash
 # Inline list of repo specs
-npx -y docpilot warm vercel/next.js@v15.0.0 drizzle-team/drizzle-orm@v0.30.1
+npx -y ctxpeek warm vercel/next.js@v15.0.0 drizzle-team/drizzle-orm@v0.30.1
 
 # Or from a recipe file
-npx -y docpilot warm ./.docpilot.recipe.toml
+npx -y ctxpeek warm ./.ctxpeek.recipe.toml
 ```
 
 Recipe file format:
 
 ```toml
-# .docpilot.recipe.toml
+# .ctxpeek.recipe.toml
 [[repo]]
 spec  = "vercel/next.js@v15.0.0"
 alias = "next"
@@ -150,6 +150,6 @@ The next session has zero cold-start latency for those repos.
 - [Authentication](authentication.md) — bring your own token, or run anonymously
 - [Configuration](../reference/configuration.md) — every knob
 - [Tools reference](../reference/tools.md) — inputs, outputs, and examples
-- [Extending docpilot](extending.md) — add a forge, lockfile parser, or registry probe (one file each)
+- [Extending ctxpeek](extending.md) — add a forge, lockfile parser, or registry probe (one file each)
 - [Architecture](../internals/architecture.md) — how it works inside, and why no vector store
 - [Troubleshooting](troubleshooting.md) — when things go sideways

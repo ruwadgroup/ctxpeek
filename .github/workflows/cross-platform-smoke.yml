@@ -28,22 +28,23 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Pack
-        run: pnpm --filter docpilot pack --pack-destination .
+        working-directory: packages/ctxpeek
+        run: pnpm pack --pack-destination ../..
 
       - name: Smoke — bash
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          tarball=$(ls docpilot-*.tgz | head -n1)
+          tarball=$(ls ctxpeek-*.tgz | head -n1)
           npm install -g "./$tarball"
-          docpilot --version
-          docpilot --help
+          ctxpeek --version
+          ctxpeek --help
 
       - name: Smoke — cmd /c (Windows footgun coverage)
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          for /f "delims=" %%i in ('dir /b docpilot-*.tgz') do set TARBALL=%%i
+          for /f "delims=" %%i in ('dir /b ctxpeek-*.tgz') do set TARBALL=%%i
           npm install -g .\%TARBALL%
-          cmd /c npx -y docpilot --version
-          cmd /c npx -y docpilot --help
+          cmd /c npx -y ctxpeek --version
+          cmd /c npx -y ctxpeek --help

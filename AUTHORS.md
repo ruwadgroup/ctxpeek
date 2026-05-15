@@ -1,6 +1,6 @@
 # Authors
 
-docpilot is built and maintained by its contributors.
+ctxpeek is built and maintained by its contributors.
 
 A full list is available via:
 
@@ -8,4 +8,4 @@ A full list is available via:
 git shortlog -sne
 ```
 
-Or on GitHub: <https://github.com/tamimbinhakim/docpilot/graphs/contributors>.
+Or on GitHub: <https://github.com/tamimbinhakim/ctxpeek/graphs/contributors>.

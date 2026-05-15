@@ -14,7 +14,7 @@ coverage/
 
 # Caches
 .cache/
-.docpilot/
+.ctxpeek/
 .turbo/
 .eslintcache
 

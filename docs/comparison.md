@@ -1,10 +1,10 @@
-# Comparison: docpilot vs Context7 vs GitMCP vs Ref Tools
+# Comparison: ctxpeek vs Context7 vs GitMCP vs Ref Tools
 
 A direct, non-marketing comparison. The main split is not privacy. It is the unit of retrieval.
 
-docpilot treats documentation as a git snapshot: `[forge:]owner/repo[@ref][#subpath]`. Context7 treats documentation as a library entry in a hosted corpus. Both are useful, but they lead to different behavior when you care about an exact branch, tag, commit, or monorepo package.
+ctxpeek treats documentation as a git snapshot: `[forge:]owner/repo[@ref][#subpath]`. Context7 treats documentation as a library entry in a hosted corpus. Both are useful, but they lead to different behavior when you care about an exact branch, tag, commit, or monorepo package.
 
-| Property                | docpilot                                        | Context7                                         | GitMCP                 | Ref Tools            |
+| Property                | ctxpeek                                         | Context7                                         | GitMCP                 | Ref Tools            |
 | ----------------------- | ----------------------------------------------- | ------------------------------------------------ | ---------------------- | -------------------- |
 | Retrieval model         | Git snapshot → tree → path → file               | Library ID → topic → curated context             | Repo URL → hosted docs | Configured sources   |
 | Transport               | stdio (local)                                   | stdio + HTTP (hosted)                            | stdio + HTTP (hosted)  | stdio (local)        |
@@ -28,12 +28,12 @@ docpilot treats documentation as a git snapshot: `[forge:]owner/repo[@ref][#subp
 
 ## When to pick which
 
-- **docpilot** — you care which branch, tag, commit, or monorepo subpath the docs came from. You want the source repo to stay the authority.
+- **ctxpeek** — you care which branch, tag, commit, or monorepo subpath the docs came from. You want the source repo to stay the authority.
 - **Context7** — you want curated topic context for a known library and the available corpus/version is good enough for the task.
 - **GitMCP** — hosted equivalent of "give me docs from owner/repo" without local install.
 - **Ref Tools** — narrowly-scoped, hand-curated docs sets per project (your team's internal notes plus a fixed set of vendor docs).
 
-These aren't strictly substitutes. Running docpilot alongside Context7 or Ref Tools is fine — the MCP transport is shared and the model picks per call.
+These aren't strictly substitutes. Running ctxpeek alongside Context7 or Ref Tools is fine — the MCP transport is shared and the model picks per call.
 
 ## Different Thinking Model
 
@@ -44,7 +44,7 @@ resolve-library-id("nextjs")
 get-library-docs("/vercel/next.js", topic: "routing", tokens: 3000)
 ```
 
-docpilot's natural flow is:
+ctxpeek's natural flow is:
 
 ```text
 list_docs("vercel/next.js@v15.0.0")
@@ -52,14 +52,14 @@ fetch_doc("vercel/next.js@v15.0.0", "docs/.../routing.mdx")
 get_changes("vercel/next.js", path: "docs/.../routing.mdx", from_ref: "v14.2.0", to_ref: "v15.0.0")
 ```
 
-That difference matters. A hosted corpus can be excellent at answering "what are the relevant docs for this topic?" docpilot is better at "what did the docs say at this exact ref, and how did they change between these refs?"
+That difference matters. A hosted corpus can be excellent at answering "what are the relevant docs for this topic?" ctxpeek is better at "what did the docs say at this exact ref, and how did they change between these refs?"
 
 Privacy, accounts, and local caching are real benefits, but they are downstream from this design. The core bet is that source repos already contain the best address space for docs: branches, tags, shas, directories, filenames, and changelogs.
 
-## What docpilot is not
+## What ctxpeek is not
 
 - **A source-code-understanding tool.** For symbol-level navigation use [`github-mcp-server`](https://github.com/github/github-mcp-server) or [`deepwiki`](https://deepwiki.com).
 - **A hosted docs corpus.** Optional immutable mirrors are compatible with the design; a hosted resolver/index that decides which docs the model sees is not.
 - **A semantic search engine.** `list_docs` returns the tree and agentic clients navigate from there. Vector retrieval re-derives relevance the corpus author already encoded in filenames, folders, and llms.txt; we trust that signal instead. Full rationale: [Why no semantic search](internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
-- **A curated library registry.** If a library has a public repo on a supported forge, docpilot can read it.
+- **A curated library registry.** If a library has a public repo on a supported forge, ctxpeek can read it.
 - **A read-write tool.** No `create_issue`, no `commit`, no `pr`. Adjacent to scope.

@@ -15,7 +15,7 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: What would you like docpilot to do differently?
+      description: What would you like ctxpeek to do differently?
     validations:
       required: true
 

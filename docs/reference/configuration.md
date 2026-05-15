@@ -4,19 +4,19 @@
 
 Highest precedence first:
 
-1. CLI args to `docpilot` (`--token`, `--cache-dir`, `--no-cdn`, …)
-2. `.docpilot.toml` in cwd or any ancestor directory up to `$HOME`
-3. `~/.config/docpilot/config.toml`
+1. CLI args to `ctxpeek` (`--token`, `--cache-dir`, `--no-cdn`, …)
+2. `.ctxpeek.toml` in cwd or any ancestor directory up to `$HOME`
+3. `~/.config/ctxpeek/config.toml`
 4. Environment variables
 5. Built-in defaults
 
 ## File format
 
-`.docpilot.toml`:
+`.ctxpeek.toml`:
 
 ```toml
 [cache]
-dir              = "~/.cache/docpilot"   # default from env-paths
+dir              = "~/.cache/ctxpeek"   # default from env-paths
 max_size         = "1GiB"
 gc_days          = 14
 
@@ -42,11 +42,11 @@ prewarm_from_lockfile = false            # reserved; no stable runtime behavior 
 
 ### `[cache]`
 
-| Key        | Type               | Default                       | Notes                                         |
-| ---------- | ------------------ | ----------------------------- | --------------------------------------------- |
-| `dir`      | `string`           | `env-paths('docpilot').cache` | Cache root                                    |
-| `max_size` | `string \| number` | `"1GiB"`                      | Cap; suffixes `K`, `M`, `G`, `Ki`, `Mi`, `Gi` |
-| `gc_days`  | `number`           | `14`                          | Snapshot eviction age                         |
+| Key        | Type               | Default                      | Notes                                         |
+| ---------- | ------------------ | ---------------------------- | --------------------------------------------- |
+| `dir`      | `string`           | `env-paths('ctxpeek').cache` | Cache root                                    |
+| `max_size` | `string \| number` | `"1GiB"`                     | Cap; suffixes `K`, `M`, `G`, `Ki`, `Mi`, `Gi` |
+| `gc_days`  | `number`           | `14`                         | Snapshot eviction age                         |
 
 ### `[fetch]`
 
@@ -79,23 +79,23 @@ prewarm_from_lockfile = false            # reserved; no stable runtime behavior 
 
 ## Environment variables
 
-| Variable             | Behavior                                                         |
-| -------------------- | ---------------------------------------------------------------- |
-| `GITHUB_TOKEN`       | GitHub token, unless `[auth] github_token_env` names another env |
-| `GITLAB_TOKEN`       | Token for `gitlab:` / `gl:` repo specs                           |
-| `BITBUCKET_TOKEN`    | Bearer token for `bitbucket:` / `bb:` repo specs                 |
-| `DOCPILOT_LOG_LEVEL` | `"debug" \| "info" \| "warn" \| "error"`                         |
+| Variable            | Behavior                                                         |
+| ------------------- | ---------------------------------------------------------------- |
+| `GITHUB_TOKEN`      | GitHub token, unless `[auth] github_token_env` names another env |
+| `GITLAB_TOKEN`      | Token for `gitlab:` / `gl:` repo specs                           |
+| `BITBUCKET_TOKEN`   | Bearer token for `bitbucket:` / `bb:` repo specs                 |
+| `CTXPEEK_LOG_LEVEL` | `"debug" \| "info" \| "warn" \| "error"`                         |
 
 ## CLI flags
 
 ```text
-docpilot [options]
+ctxpeek [options]
 
   --token <token>          override GITHUB_TOKEN
   --cache-dir <path>       override [cache] dir
   --no-cdn                 disable CDN reads
   --cdn-only               prefer CDN reads before REST
-  --config <path>          explicit .docpilot.toml path
+  --config <path>          explicit .ctxpeek.toml path
   --log-level <level>      debug | info | warn | error
   --help, -h               show this message
   --version, -v            print version

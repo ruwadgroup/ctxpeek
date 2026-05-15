@@ -1,7 +1,7 @@
-docpilot
-Copyright 2026 docpilot contributors
+ctxpeek
+Copyright 2026 ctxpeek contributors
 
-This product includes software developed by the docpilot contributors.
+This product includes software developed by the ctxpeek contributors.
 
 Third-party dependencies (runtime) and their licenses are listed in the
 generated SBOM (.github/workflows/release.yml emits one per release).

@@ -1,9 +1,9 @@
 # Example recipes
 
-Drop-in `.docpilot.recipe.toml` bundles for common stacks. Install one with:
+Drop-in `.ctxpeek.recipe.toml` bundles for common stacks. Install one with:
 
 ```bash
-npx -y docpilot recipe install ./next-drizzle-clerk.toml
+npx -y ctxpeek recipe install ./next-drizzle-clerk.toml
 ```
 
 | Recipe                                                         | Stack                                       |

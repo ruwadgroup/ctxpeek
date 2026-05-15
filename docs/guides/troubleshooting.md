@@ -3,7 +3,7 @@
 When in doubt, run the doctor:
 
 ```bash
-npx -y docpilot doctor
+npx -y ctxpeek doctor
 ```
 
 It catches most "it just doesn't work" reports before you have to file one.
@@ -17,9 +17,9 @@ The single most common failure across MCP clients on Windows. `npx` is a `.cmd` 
 ```jsonc
 {
   "mcpServers": {
-    "docpilot": {
+    "ctxpeek": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "docpilot"]
+      "args": ["/c", "npx", "-y", "ctxpeek"]
     }
   }
 }
@@ -27,9 +27,9 @@ The single most common failure across MCP clients on Windows. `npx` is a `.cmd` 
 
 Same fix applies to Cursor, Cline, VS Code Insiders, Windsurf, and Claude Desktop.
 
-## `command not found: docpilot` after install
+## `command not found: ctxpeek` after install
 
-You probably installed globally with a tool that doesn't expose binaries to `PATH`. Use `npx -y docpilot` directly in the client config — that always works because npm cache resolution doesn't depend on `PATH`.
+You probably installed globally with a tool that doesn't expose binaries to `PATH`. Use `npx -y ctxpeek` directly in the client config — that always works because npm cache resolution doesn't depend on `PATH`.
 
 ## Rate-limited
 
@@ -41,16 +41,16 @@ If you see "GitHub: API rate limit exceeded for {ip}", you're running anonymous 
 Inspect the local cache state any time:
 
 ```bash
-npx -y docpilot cache status
+npx -y ctxpeek cache status
 ```
 
-Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. If GitHub is unreachable, docpilot detects that automatically, pauses GitHub checks briefly, and falls back to the local state plus the last primary headers it observed.
+Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. If GitHub is unreachable, ctxpeek detects that automatically, pauses GitHub checks briefly, and falls back to the local state plus the last primary headers it observed.
 
 ## "Library not found" from `resolve_repo`
 
-By design, docpilot returns `Ambiguous` candidates rather than guessing. If you got `NotFound`, project-context matching, registry probes/searches (npm, PyPI, crates, Go, RubyGems, Packagist, Hex), package-manifest verification, and the GitHub `/search/repositories` fallback all came back empty.
+By design, ctxpeek returns `Ambiguous` candidates rather than guessing. If you got `NotFound`, project-context matching, registry probes/searches (npm, PyPI, crates, Go, RubyGems, Packagist, Hex), package-manifest verification, and the GitHub `/search/repositories` fallback all came back empty.
 
-Bypass the resolver: pass `owner/repo` directly. docpilot only resolves fuzzy names — canonical specs go straight through.
+Bypass the resolver: pass `owner/repo` directly. ctxpeek only resolves fuzzy names — canonical specs go straight through.
 
 ```text
 fetch_doc("vercel/next.js", "docs/getting-started.mdx")
@@ -68,17 +68,17 @@ list_docs("vercel/next.js@v15.0.0")  # always v15.0.0
 Or evict by deleting the cache dir:
 
 ```bash
-rm -rf ~/Library/Caches/docpilot   # macOS
-rm -rf ~/.cache/docpilot           # Linux
+rm -rf ~/Library/Caches/ctxpeek   # macOS
+rm -rf ~/.cache/ctxpeek           # Linux
 ```
 
 ## Tools don't appear in the client
 
 1. Check the client log (Claude Desktop: `~/Library/Logs/Claude/mcp*.log`).
-2. Run docpilot directly to surface the underlying error:
+2. Run ctxpeek directly to surface the underlying error:
 
    ```bash
-   npx -y docpilot
+   npx -y ctxpeek
    # Should start the stdio MCP server and wait on stdin.
    ```
 
@@ -86,7 +86,7 @@ rm -rf ~/.cache/docpilot           # Linux
 
 ## Windsurf "all MCP servers stop loading"
 
-Older Windsurf versions had a refresh-loop bug when one MCP server changed. docpilot doesn't share state across server instances and doesn't use SSE — confirmed working on Windsurf ≥ 1.4. If you still hit this, restart Windsurf with all but docpilot disabled to isolate.
+Older Windsurf versions had a refresh-loop bug when one MCP server changed. ctxpeek doesn't share state across server instances and doesn't use SSE — confirmed working on Windsurf ≥ 1.4. If you still hit this, restart Windsurf with all but ctxpeek disabled to isolate.
 
 ## File reported as too large to fetch
 
@@ -101,8 +101,8 @@ This is a token-budget guardrail, not a hard limit.
 
 ## Still stuck?
 
-Open an issue at <https://github.com/tamimbinhakim/docpilot/issues> with:
+Open an issue at <https://github.com/tamimbinhakim/ctxpeek/issues> with:
 
-1. `npx -y docpilot doctor` output (redact your token)
+1. `npx -y ctxpeek doctor` output (redact your token)
 2. Your MCP client + version
 3. The exact failing tool call

@@ -1,6 +1,6 @@
 # Architecture
 
-What happens when an MCP client invokes a docpilot tool, layer by layer. The whole thing is small enough to read in one sitting.
+What happens when an MCP client invokes a ctxpeek tool, layer by layer. The whole thing is small enough to read in one sitting.
 
 ## The 30-second mental model
 
@@ -11,7 +11,7 @@ What happens when an MCP client invokes a docpilot tool, layer by layer. The who
 └───────────────────┬─────────────────────────┘
                     │ JSON-RPC over stdio
 ┌───────────────────▼─────────────────────────┐
-│  docpilot (Node ≥20, single process)        │
+│  ctxpeek (Node ≥20, single process)        │
 │                                             │
 │  ┌──────────┐  ┌──────────┐  ┌────────────┐ │
 │  │  Tools   │  │  Resolver│  │ Docs tree  │ │
@@ -26,14 +26,14 @@ What happens when an MCP client invokes a docpilot tool, layer by layer. The who
 │                   │                         │
 │  ┌────────────────▼───────────────────────┐ │
 │  │  Snapshot-Addressed Cache              │ │
-│  │  env-paths(docpilot) / refs / blobs    │ │
+│  │  env-paths(ctxpeek) / refs / blobs    │ │
 │  └────────────────────────────────────────┘ │
 └─────────────────────────────────────────────┘
 ```
 
 ## Invariants
 
-- **All state is on disk**, under `env-paths('docpilot').cache`. No daemon, no port.
+- **All state is on disk**, under `env-paths('ctxpeek').cache`. No daemon, no port.
 - **Blobs are snapshot-addressed** by sha256 of `(forge, commit-sha, path)`. Repeat reads of the same file at the same commit are local.
 - **A repo is a "snapshot"**: `(forge, owner, repo, commit-sha)`. Refs (`main`, `v15`, `latest`) resolve to a sha at the start of each tool call; downstream operations operate on the sha.
 - **Docs navigation is tree-first.** `list_docs` returns the repo's docs tree; the model picks a path and calls `fetch_doc`.
@@ -49,7 +49,7 @@ A single Node process speaking JSON-RPC over stdio. Each tool from `src/tools/*`
 
 Each tool is a thin orchestrator: validate input with zod, call into the right combination of resolver / cache / fetch, render the result as markdown, return.
 
-Tool descriptions are written so the model **defaults** to calling docpilot when the user mentions a library. No magic incantation.
+Tool descriptions are written so the model **defaults** to calling ctxpeek when the user mentions a library. No magic incantation.
 
 ### 3. Resolver (`src/resolve/`) <a id="resolver"></a>
 
@@ -105,7 +105,7 @@ The resolution cache stores verified forge metadata (`forge`, `owner`, `repo`, `
 
 ### 4. Fetch strategy (`src/fetch/`)
 
-For each blob we need, docpilot tries paths in this order. Every miss falls through to the next.
+For each blob we need, ctxpeek tries paths in this order. Every miss falls through to the next.
 
 | #   | Path                                            | Cost                            | When                                                                 |
 | --- | ----------------------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
@@ -127,7 +127,7 @@ For a **second** invocation against the same commit, the blob and tree caches br
 ### 5. Cache (`src/cache/`)
 
 ```
-${env-paths('docpilot').cache}/
+${env-paths('ctxpeek').cache}/
 ├── blobs/
 │   └── ab/ab12cdef…           snapshot/path-keyed bytes
 ├── refs/
@@ -163,29 +163,29 @@ When models weren't agentic, query → top-k was the right shape. Hand the model
 
 Today's clients are agentic. They list a tree, read a path, decide whether it's what they wanted, and call again. The right primitive for _that_ shape isn't "guess what the answer looks like and dump six chunks" — it's "show me the structure of these docs and let me navigate." If a repo was written for a human to navigate (filenames, folder hierarchy, llms.txt, README headings), it's already navigable by an agent. The corpus author has _already_ encoded relevance — embeddings just re-derive a lossier version of it.
 
-So docpilot leans on what's already there. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
+So ctxpeek leans on what's already there. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
 
 ### Why CDN as a first-class fallback?
 
-Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous docpilot users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
+Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous ctxpeek users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.
 
 ### Why no hosted docs corpus?
 
 The boundary is not "never use a server for anything." A cache mirror or CDN can be compatible if it serves immutable public bytes and the client still verifies what it receives.
 
-The boundary is: docpilot does not make a hosted corpus, resolver, ranking model, or authoring layer the authority for documentation. The authority is the git snapshot named by `[forge:]owner/repo[@ref][#subpath]`. If a hosted service decides which library, version, snippets, or instructions the model sees, docpilot has stopped being ref-native source access and has become a different product.
+The boundary is: ctxpeek does not make a hosted corpus, resolver, ranking model, or authoring layer the authority for documentation. The authority is the git snapshot named by `[forge:]owner/repo[@ref][#subpath]`. If a hosted service decides which library, version, snippets, or instructions the model sees, ctxpeek has stopped being ref-native source access and has become a different product.
 
 ### Non-goals (so the surface stays small)
 
 - **No vector store, no embeddings.** See above.
 - **No hosted docs corpus or hosted resolver as the authority.** See above.
-- **No curated library registry.** If a library has a public repo on a supported forge, docpilot can read it. We're never building a "trusted libraries" list.
+- **No curated library registry.** If a library has a public repo on a supported forge, ctxpeek can read it. We're never building a "trusted libraries" list.
 - **No write operations.** No `create_issue`, no `commit`, no `pr`. Adjacent to scope.
-- **No source-code understanding.** docpilot is for documentation. Symbol-level navigation is `github-mcp-server`'s job.
+- **No source-code understanding.** ctxpeek is for documentation. Symbol-level navigation is `github-mcp-server`'s job.
 
 ## Plug-in registries
 
-Four `define*` factories let contributors extend docpilot by adding **one file** — no other code in the repo needs to change. See [`docs/guides/extending.md`](../guides/extending.md) for end-to-end examples.
+Four `define*` factories let contributors extend ctxpeek by adding **one file** — no other code in the repo needs to change. See [`docs/guides/extending.md`](../guides/extending.md) for end-to-end examples.
 
 | Concern                                           | Helper                  | Files live in                   |
 | ------------------------------------------------- | ----------------------- | ------------------------------- |
@@ -198,13 +198,13 @@ Each helper writes to a module-local `Map<string, Definition>`. Built-ins side-r
 
 ## Where to read the code
 
-- [`packages/docpilot/src/server.ts`](../../packages/docpilot/src/server.ts) — MCP entrypoint + CLI dispatch
-- [`packages/docpilot/src/tools/`](../../packages/docpilot/src/tools/) — MCP tool implementations
-- [`packages/docpilot/src/fetch/strategy.ts`](../../packages/docpilot/src/fetch/strategy.ts) — local cache + CDN + REST fallback chain
-- [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/) — GitHub / GitLab / Bitbucket adapters
-- [`packages/docpilot/src/resolve/orchestrator.ts`](../../packages/docpilot/src/resolve/orchestrator.ts)
-- [`packages/docpilot/src/lockfile.ts`](../../packages/docpilot/src/lockfile.ts) — manifest detection façade
-- [`packages/docpilot/src/cache/`](../../packages/docpilot/src/cache/)
-- [`packages/docpilot-core/`](../../packages/docpilot-core/)
+- [`packages/ctxpeek/src/server.ts`](../../packages/ctxpeek/src/server.ts) — MCP entrypoint + CLI dispatch
+- [`packages/ctxpeek/src/tools/`](../../packages/ctxpeek/src/tools/) — MCP tool implementations
+- [`packages/ctxpeek/src/fetch/strategy.ts`](../../packages/ctxpeek/src/fetch/strategy.ts) — local cache + CDN + REST fallback chain
+- [`packages/ctxpeek/src/fetch/forges/`](../../packages/ctxpeek/src/fetch/forges/) — GitHub / GitLab / Bitbucket adapters
+- [`packages/ctxpeek/src/resolve/orchestrator.ts`](../../packages/ctxpeek/src/resolve/orchestrator.ts)
+- [`packages/ctxpeek/src/lockfile.ts`](../../packages/ctxpeek/src/lockfile.ts) — manifest detection façade
+- [`packages/ctxpeek/src/cache/`](../../packages/ctxpeek/src/cache/)
+- [`packages/ctxpeek-core/`](../../packages/ctxpeek-core/)
 
 If you read those and still have a "wait, how does X work?" question, that's a docs bug. Please file it.

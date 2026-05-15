@@ -1,8 +1,10 @@
 # Tools reference
 
-Every docpilot tool returns markdown `text` content unless noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent`; markdown remains the source of truth across MCP clients.
+Every ctxpeek tool returns markdown `text` content unless noted. Tools whose output is plausibly chained programmatically (`resolve_repo`) also expose `structuredContent`; markdown remains the source of truth across MCP clients.
 
-Input schemas use `zod` via `@modelcontextprotocol/sdk`. Tool descriptions are written so that an agentic client defaults to docpilot when you mention a library — no "use docpilot" magic incantation required.
+Tool failures are returned as markdown so the assistant can recover even in MCP clients that hide `isError` payloads. Error responses start with `# <tool> could not complete` and include `structuredContent: { ok: false, tool, error }` with fields such as `code`, `message`, `reset_at`, and `suggestions`.
+
+Input schemas use `zod` via `@modelcontextprotocol/sdk`. Tool descriptions are written so that an agentic client defaults to ctxpeek when you mention a library — no "use ctxpeek" magic incantation required.
 
 ---
 
@@ -207,9 +209,9 @@ Search a repo's open issues / PRs that mention `query`. Uses GitHub's separate `
 Diagnostic.
 
 ```markdown
-# docpilot cache
+# ctxpeek cache
 
-Location:     /Users/you/Library/Caches/docpilot
+Location:     /Users/you/Library/Caches/ctxpeek
 Blobs:        128.4M
 Refs/trees:   1.1M
 Cap:          1024.0M (gc_days=14)
@@ -221,7 +223,7 @@ Pass `{ repo: "owner/repo" }` for a per-repo ref breakdown.
 
 ## `rate_limits()`
 
-Show GitHub's `/rate_limit` view and local throttler accounting. If GitHub is unreachable, docpilot falls back to local state and briefly delays follow-up GitHub checks.
+Show GitHub's `/rate_limit` view and local throttler accounting. If GitHub is unreachable, ctxpeek falls back to local state and briefly delays follow-up GitHub checks.
 
 **Input**
 
@@ -248,4 +250,4 @@ Secondary budget:    60/min (59.8/60 tokens available)
 Concurrency:         8 max
 ```
 
-When GitHub cannot be reached, the GitHub section reports the failure and the local section also includes the last primary headers docpilot observed.
+When GitHub cannot be reached, the GitHub section reports the failure and the local section also includes the last primary headers ctxpeek observed.

@@ -1,4 +1,6 @@
-<h1 align="center">docpilot</h1>
+<h1 align="center">ctxpeek</h1>
+
+<p align="center"><strong>(Pronounced Context Peek)</strong></p>
 
 <h3 align="center">
   Up-to-date docs for AI coding assistants.<br />
@@ -12,11 +14,11 @@
 
 <div align="center">
 
-[![CI](https://github.com/tamimbinhakim/docpilot/actions/workflows/ci.yml/badge.svg)](https://github.com/tamimbinhakim/docpilot/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/tamimbinhakim/docpilot/actions/workflows/codeql.yml/badge.svg)](https://github.com/tamimbinhakim/docpilot/actions/workflows/codeql.yml)
-[![npm](https://img.shields.io/npm/v/docpilot.svg)](https://www.npmjs.com/package/docpilot)
-[![npm downloads](https://img.shields.io/npm/dm/docpilot.svg)](https://www.npmjs.com/package/docpilot)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/docpilot.svg)](https://bundlephobia.com/package/docpilot)
+[![CI](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/ci.yml/badge.svg)](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/codeql.yml/badge.svg)](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/codeql.yml)
+[![npm](https://img.shields.io/npm/v/ctxpeek.svg)](https://www.npmjs.com/package/ctxpeek)
+[![npm downloads](https://img.shields.io/npm/dm/ctxpeek.svg)](https://www.npmjs.com/package/ctxpeek)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/ctxpeek.svg)](https://bundlephobia.com/package/ctxpeek)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -48,13 +50,13 @@
 
 ## What it does
 
-docpilot is a local stdio MCP server. Add it to your client, then ask your assistant about any library by `owner/repo`:
+ctxpeek is a local stdio MCP server. Add it to your client, then ask your assistant about any library by `owner/repo`:
 
 ```bash
-npx -y docpilot
+npx -y ctxpeek
 ```
 
-When you say _"show me the routing docs from `vercel/next.js@v15.0.0`"_, your model calls docpilot, docpilot fetches the actual file from the actual repo at that commit, returns it as markdown, and your model works with information it can trust.
+When you say _"show me the routing docs from `vercel/next.js@v15.0.0`"_, your model calls ctxpeek, ctxpeek fetches the actual file from the actual repo at that commit, returns it as markdown, and your model works with information it can trust.
 
 It also resolves fuzzy names (`"drizzle orm"` → `drizzle-team/drizzle-orm` via npm/PyPI/crates/Go/RubyGems/Packagist/Hex), so the model can get to the right repo before listing its docs tree.
 
@@ -63,12 +65,12 @@ Built for agentic clients. The model lists a tree, picks a path, reads the file,
 What you get out of the box:
 
 - **Local-first.** Cache, listing, and fetch all run on your machine. No telemetry. Your queries don't leave.
-- **Any public repo on GitHub, GitLab, or Bitbucket.** Codeberg / Gitea / sourcehut are one file away — see [extending docpilot](docs/guides/extending.md).
+- **Any public repo on GitHub, GitLab, or Bitbucket.** Codeberg / Gitea / sourcehut are one file away — see [extending ctxpeek](docs/guides/extending.md).
 - **Ref-native by default.** Branch, tag, commit sha, and monorepo subpath are part of the input: `owner/repo@ref#subpath`.
 - **Version-pinned docs without ingestion.** `owner/repo@v15.0.0`, `owner/repo@main`, and `owner/repo@<sha>` all read the matching git snapshot directly.
 - **Free, forever.** Bring your own GitHub PAT — or none. A warm cache reads locally; authenticated conditional REST responses that return 304 do not count against your GitHub primary rate limit.
 - **Markdown out, not JSON.** ~75% smaller for the same information. Every response self-reports `~tokens` so the model can budget.
-- **No third-party instruction channel.** docpilot only serves file contents from repos you name. The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry) is structurally absent — see [Threat model](#threat-model).
+- **No third-party instruction channel.** ctxpeek only serves file contents from repos you name. The [ContextCrush class of bug](https://noma.security/) (Custom Rules served verbatim from a third-party registry) is structurally absent — see [Threat model](#threat-model).
 
 <br />
 
@@ -76,22 +78,22 @@ What you get out of the box:
 
 Context7 is the obvious comparison, but the core difference is not "hosted vs local" or even privacy. The core difference is the retrieval model.
 
-Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. docpilot starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, inspects paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
+Context7 starts from a library ID in a hosted documentation corpus, then returns topic-shaped context. That is useful when you want curated snippets for a popular library. ctxpeek starts from a git snapshot: repo, ref, and optional subpath. The agent lists the docs tree, inspects paths, fetches exact files, and can move between versions because every tool understands `owner/repo@ref`.
 
-|                              | Context7                                                                                          | docpilot                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Thinking model**           | Resolve a library ID, ask for a topic, receive curated context from the hosted corpus.            | Resolve a repo/ref, inspect the tree, fetch exact files from the matching git snapshot.                                                 |
-| **Version model**            | Version-specific library IDs are possible when that version exists in the corpus.                 | Branches, tags, and commit shas are the native address space: `owner/repo@main`, `@v15.0.0`, `@<sha>`.                                  |
-| **Fresh dev branches**       | A new library or version has to be submitted, crawled, indexed, or refreshed before it is useful. | Works as soon as the ref exists on the forge. Pin `@<sha>` and the model reads the exact docs you just pushed.                          |
-| **Agent workflow**           | Good for "give me the relevant snippet for this topic."                                           | Good for "show me this project's docs at this version, then let the agent navigate."                                                    |
-| **Monorepos**                | The library ID usually points at a selected docs surface.                                         | `#subpath` is first-class: `vercel/next.js@canary#packages/next/src/lib`.                                                               |
-| **Library coverage**         | Curated registry. If it is not in the corpus, it must be added first.                             | Any public repo on GitHub, GitLab, or Bitbucket. Including your own libraries and unreleased branches.                                  |
-| **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` verifies registry candidates on the forge, scores package/repo evidence, and returns alternatives when ambiguous.        |
-| **Prompt-injection surface** | A hosted documentation layer can add authoring or policy surface beyond the upstream repo.        | No third-party authoring layer. docpilot serves files from the repo/ref you named. Content-layer bugs, like a malicious README, remain. |
-| **Operational model**        | Hosted service, optional account/API key for higher usage.                                        | Local stdio MCP process. Bring a forge token or use public CDN fallbacks.                                                               |
-| **Privacy**                  | Queries go to the hosted service.                                                                 | Query privacy falls out of the architecture, but it is not the main pitch. The main pitch is ref-addressed source-of-truth docs.        |
+|                              | Context7                                                                                          | ctxpeek                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thinking model**           | Resolve a library ID, ask for a topic, receive curated context from the hosted corpus.            | Resolve a repo/ref, inspect the tree, fetch exact files from the matching git snapshot.                                                |
+| **Version model**            | Version-specific library IDs are possible when that version exists in the corpus.                 | Branches, tags, and commit shas are the native address space: `owner/repo@main`, `@v15.0.0`, `@<sha>`.                                 |
+| **Fresh dev branches**       | A new library or version has to be submitted, crawled, indexed, or refreshed before it is useful. | Works as soon as the ref exists on the forge. Pin `@<sha>` and the model reads the exact docs you just pushed.                         |
+| **Agent workflow**           | Good for "give me the relevant snippet for this topic."                                           | Good for "show me this project's docs at this version, then let the agent navigate."                                                   |
+| **Monorepos**                | The library ID usually points at a selected docs surface.                                         | `#subpath` is first-class: `vercel/next.js@canary#packages/next/src/lib`.                                                              |
+| **Library coverage**         | Curated registry. If it is not in the corpus, it must be added first.                             | Any public repo on GitHub, GitLab, or Bitbucket. Including your own libraries and unreleased branches.                                 |
+| **Wrong-library risk**       | `resolve-library-id` can choose from registry matches using Context7's ranking and trust signals. | `resolve_repo` verifies registry candidates on the forge, scores package/repo evidence, and returns alternatives when ambiguous.       |
+| **Prompt-injection surface** | A hosted documentation layer can add authoring or policy surface beyond the upstream repo.        | No third-party authoring layer. ctxpeek serves files from the repo/ref you named. Content-layer bugs, like a malicious README, remain. |
+| **Operational model**        | Hosted service, optional account/API key for higher usage.                                        | Local stdio MCP process. Bring a forge token or use public CDN fallbacks.                                                              |
+| **Privacy**                  | Queries go to the hosted service.                                                                 | Query privacy falls out of the architecture, but it is not the main pitch. The main pitch is ref-addressed source-of-truth docs.       |
 
-Context7 optimizes for a curated documentation answer. docpilot optimizes for a reproducible documentation snapshot. If your question depends on _which branch, tag, commit, or monorepo package_ the docs came from, docpilot is the better primitive.
+Context7 optimizes for a curated documentation answer. ctxpeek optimizes for a reproducible documentation snapshot. If your question depends on _which branch, tag, commit, or monorepo package_ the docs came from, ctxpeek is the better primitive.
 
 > Long-form: [`docs/comparison.md`](docs/comparison.md) (vs Context7, GitMCP, Ref Tools).
 
@@ -99,7 +101,7 @@ Context7 optimizes for a curated documentation answer. docpilot optimizes for a 
 
 ## The story
 
-I built docpilot because I got tired of doing the same dance every day.
+I built ctxpeek because I got tired of doing the same dance every day.
 
 I'd been elbows-deep in two of my own libraries — [`tamimbinhakim/imprint-pdf`](https://github.com/tamimbinhakim/imprint-pdf) and [`tamimbinhakim/dyadpy`](https://github.com/tamimbinhakim/dyadpy) — refactoring APIs faster than I could ship them. The repos were the source of truth. They had to be. I was the one writing the docs.
 
@@ -116,22 +118,22 @@ I tried Context7. It's well-built and the team clearly cares. But its unit of wo
 
 The fix turned out to be obvious in hindsight: **the canonical source for a library's docs is its git repo**. So pull straight from there. Pin to a sha for reproducibility, pin to `@main` for branch docs, cache locally so repeat reads cost zero, and use ETags when REST fallback has a validator. No middleman.
 
-That's docpilot. The tool I wanted on my own machine, six months ago.
+That's ctxpeek. The tool I wanted on my own machine, six months ago.
 
 <br />
 
 ## Quick Start
 
-### 1. Add docpilot to your MCP client
+### 1. Add ctxpeek to your MCP client
 
 **Claude Desktop / Claude Code** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```jsonc
 {
   "mcpServers": {
-    "docpilot": {
+    "ctxpeek": {
       "command": "npx",
-      "args": ["-y", "docpilot"]
+      "args": ["-y", "ctxpeek"]
     }
   }
 }
@@ -142,7 +144,7 @@ That's docpilot. The tool I wanted on my own machine, six months ago.
 **Codex CLI:**
 
 ```bash
-codex mcp add docpilot -- npx -y docpilot
+codex mcp add ctxpeek -- npx -y ctxpeek
 ```
 
 **Windows:** `npx` is a `.cmd` shim and several MCP clients fail to spawn it. Wrap it:
@@ -150,26 +152,26 @@ codex mcp add docpilot -- npx -y docpilot
 ```jsonc
 {
   "mcpServers": {
-    "docpilot": {
+    "ctxpeek": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "docpilot"]
+      "args": ["/c", "npx", "-y", "ctxpeek"]
     }
   }
 }
 ```
 
-Run `npx -y docpilot doctor` once to verify your environment.
+Run `npx -y ctxpeek doctor` once to verify your environment.
 
 ### Authentication
 
-docpilot looks for a GitHub token in this order — first one wins, none required:
+ctxpeek looks for a GitHub token in this order — first one wins, none required:
 
 1. `--token <pat>` flag
 2. `$GITHUB_TOKEN` env var
 3. `gh auth token` if [the GitHub CLI](https://cli.github.com/) is installed and logged in
 4. Anonymous (60 req/hr REST; the CDN does the heavy lifting)
 
-If you already run `gh auth login`, you're done. `docpilot doctor` reports which path won.
+If you already run `gh auth login`, you're done. `ctxpeek doctor` reports which path won.
 
 ### 2. Use it from your assistant
 
@@ -182,7 +184,7 @@ Reference any repo as `[forge:]owner/repo[@ref][#subpath]`:
 "Use the latest tamimbinhakim/dyadpy@main API to wire up an SSE endpoint"
 ```
 
-The model picks the right tool from the docpilot surface automatically. No magic incantation.
+The model picks the right tool from the ctxpeek surface automatically. No magic incantation.
 
 <br />
 
@@ -231,13 +233,13 @@ Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).
 ### CLI surface
 
 ```text
-docpilot                          Start the MCP stdio server (default)
-docpilot doctor                   Environment self-check
-docpilot warm <spec...>           Pre-pull refs + doc trees for repos or a recipe
-docpilot recipe install <path>    Pre-warm from a recipe file
-docpilot cache status [repo]      On-disk cache report
-docpilot cache gc                 Garbage-collect the cache
-docpilot --version | --help
+ctxpeek                          Start the MCP stdio server (default)
+ctxpeek doctor                   Environment self-check
+ctxpeek warm <spec...>           Pre-pull refs + doc trees for repos or a recipe
+ctxpeek recipe install <path>    Pre-warm from a recipe file
+ctxpeek cache status [repo]      On-disk cache report
+ctxpeek cache gc                 Garbage-collect the cache
+ctxpeek --version | --help
 ```
 
 <br />
@@ -246,9 +248,9 @@ docpilot --version | --help
 
 Discovery (highest precedence first):
 
-1. CLI args to `docpilot`
-2. `.docpilot.toml` in cwd or any ancestor up to `$HOME`
-3. `~/.config/docpilot/config.toml`
+1. CLI args to `ctxpeek`
+2. `.ctxpeek.toml` in cwd or any ancestor up to `$HOME`
+3. `~/.config/ctxpeek/config.toml`
 4. Env vars
 5. Built-in defaults
 
@@ -256,7 +258,7 @@ A starter config:
 
 ```toml
 [cache]
-dir       = "~/.cache/docpilot"
+dir       = "~/.cache/ctxpeek"
 max_size  = "1GiB"
 gc_days   = 14
 
@@ -278,11 +280,11 @@ Full reference: [`docs/reference/configuration.md`](docs/reference/configuration
 A recipe is a shareable bundle of pre-pinned repos. Pre-warm a stack with one command:
 
 ```bash
-npx -y docpilot recipe install ./.docpilot.recipe.toml
+npx -y ctxpeek recipe install ./.ctxpeek.recipe.toml
 ```
 
 ```toml
-# .docpilot.recipe.toml
+# .ctxpeek.recipe.toml
 [[repo]]
 spec  = "vercel/next.js@v15.0.0"
 alias = "next"
@@ -302,7 +304,7 @@ Authoring guide: [`docs/guides/recipes.md`](docs/guides/recipes.md). Examples: [
 
 ## Privacy
 
-docpilot makes no network call to any host other than:
+ctxpeek makes no network call to any host other than:
 
 - `api.github.com`, `cdn.jsdelivr.net`
 - `gitlab.com`, `api.bitbucket.org` (only when you use a `gitlab:` or `bitbucket:` repo spec)
@@ -320,54 +322,54 @@ No telemetry. No analytics. Your query strings never leave your machine except a
 - _No hosted query log._ Outbound calls are the ones above, only when you make them.
 - _No opaque hosted trust score._ Resolution uses visible registry/forge evidence: URL field, package-name match, optional package-manifest verification, repo stars, and GitHub search only as the final fallback. Candidates are returned to the model when ambiguous.
 
-**What docpilot does _not_ solve**
+**What ctxpeek does _not_ solve**
 
 - _Content-layer prompt injection._ If a `README.md` or `llms.txt` contains an instruction-shaped payload, `fetch_doc` returns it verbatim and your model will see it. True of any tool that retrieves third-party docs. Pin to a sha you've reviewed; prefer release tags over `@main` for production prompts; don't auto-execute model output.
 - _Repository takeover._ A compromised maintainer can land a malicious commit on the branch you're pinned to. Pin a sha you trust.
-- _CDN compromise._ jsDelivr is donation-funded. If it served tampered bytes, docpilot would deliver them. Run with `--no-cdn` if that's not acceptable.
-- _Recipe supply chain._ A `.docpilot.recipe.toml` you install can pre-warm any repo it lists. Same posture as a `package.json` dep — read what you install.
+- _CDN compromise._ jsDelivr is donation-funded. If it served tampered bytes, ctxpeek would deliver them. Run with `--no-cdn` if that's not acceptable.
+- _Recipe supply chain._ A `.ctxpeek.recipe.toml` you install can pre-warm any repo it lists. Same posture as a `package.json` dep — read what you install.
 
 If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 <br />
 
-## When not to use docpilot
+## When not to use ctxpeek
 
 - You need symbol-level navigation across a repo (where is `useState` defined?) — use [`github-mcp-server`](https://github.com/github/github-mcp-server) or [`deepwiki`](https://github.com/AsyncFuncAI/deepwiki-open).
-- You want to write to the repo (open issues, create PRs, commit) — docpilot is read-only by design.
+- You want to write to the repo (open issues, create PRs, commit) — ctxpeek is read-only by design.
 - You want curated, ranked snippets across many libraries from one hosted index — that's Context7's strength when its tradeoffs are acceptable.
-- Your environment blocks outbound HTTPS. docpilot needs to reach `api.github.com` (or the CDN) at least once per repo. A warm cache works fully offline.
+- Your environment blocks outbound HTTPS. ctxpeek needs to reach `api.github.com` (or the CDN) at least once per repo. A warm cache works fully offline.
 
 <br />
 
 ## Honest tradeoffs
 
-- _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's why docpilot defaults to jsDelivr for raw reads, even with a PAT.
-- _Authenticated 304s are free_ ([docs](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). docpilot uses `If-None-Match` on REST fallbacks when it has an ETag.
+- _Unauthenticated `raw.githubusercontent.com` was rate-limited on May 8, 2025_ ([changelog](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)) with no documented way to authenticate. That's why ctxpeek defaults to jsDelivr for raw reads, even with a PAT.
+- _Authenticated 304s are free_ ([docs](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api)). ctxpeek uses `If-None-Match` on REST fallbacks when it has an ETag.
 - _GraphQL has no ETag._ For file content, local cache + CDN + REST/ETag is the better path. GraphQL is currently reserved for metadata batching where it reduces resolver overhead.
 - _No semantic search, no vector store — deliberate._ Pre-agentic retrieval handed the model a top-k chunk dump because it couldn't go look itself. Agentic clients can list a tree, read a path, decide, and call again — so the right primitive is the structure the corpus author already encoded (filenames, folders, llms.txt). `list_docs` shows the tree; `fetch_doc` returns the file. Full argument: [architecture.md](docs/internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
-- _MCP structured output support is uneven across clients_ as of May 2026. Some clients pass `structuredContent` to the model verbatim. docpilot returns structured data only where useful; markdown is the source of truth.
-- _`llms.txt` is a proposal, not a standard._ docpilot boosts hits inside it when present; it's never required.
+- _MCP structured output support is uneven across clients_ as of May 2026. Some clients pass `structuredContent` to the model verbatim. ctxpeek returns structured data only where useful; markdown is the source of truth.
+- _`llms.txt` is a proposal, not a standard._ ctxpeek boosts hits inside it when present; it's never required.
 
 <br />
 
 ## Documentation
 
-|                                                   |                                             |
-| ------------------------------------------------- | ------------------------------------------- |
-| [Getting started](docs/guides/getting-started.md) | Install and first session                   |
-| [Configuration](docs/reference/configuration.md)  | All config keys                             |
-| [Tools reference](docs/reference/tools.md)        | Every tool's input / output                 |
-| [Repo spec grammar](docs/reference/repo-spec.md)  | The `owner/repo[@ref][#subpath]` format     |
-| [Authentication](docs/guides/authentication.md)   | Tokens, `gh auth`, anonymous mode           |
-| [Recipes](docs/guides/recipes.md)                 | Stack bundles                               |
-| [Caching](docs/guides/caching.md)                 | What's cached, where, for how long          |
-| [Extending](docs/guides/extending.md)             | Add a forge / lockfile parser / registry    |
-| [Troubleshooting](docs/guides/troubleshooting.md) | Windows, ENOENT, rate limits                |
-| [Comparison](docs/comparison.md)                  | docpilot vs Context7 vs GitMCP vs Ref Tools |
-| [Architecture](docs/internals/architecture.md)    | How it works inside                         |
-| [Security](SECURITY.md)                           | Reporting vulnerabilities                   |
-| [Contributing](CONTRIBUTING.md)                   | Dev setup, conventions                      |
+|                                                   |                                            |
+| ------------------------------------------------- | ------------------------------------------ |
+| [Getting started](docs/guides/getting-started.md) | Install and first session                  |
+| [Configuration](docs/reference/configuration.md)  | All config keys                            |
+| [Tools reference](docs/reference/tools.md)        | Every tool's input / output                |
+| [Repo spec grammar](docs/reference/repo-spec.md)  | The `owner/repo[@ref][#subpath]` format    |
+| [Authentication](docs/guides/authentication.md)   | Tokens, `gh auth`, anonymous mode          |
+| [Recipes](docs/guides/recipes.md)                 | Stack bundles                              |
+| [Caching](docs/guides/caching.md)                 | What's cached, where, for how long         |
+| [Extending](docs/guides/extending.md)             | Add a forge / lockfile parser / registry   |
+| [Troubleshooting](docs/guides/troubleshooting.md) | Windows, ENOENT, rate limits               |
+| [Comparison](docs/comparison.md)                  | ctxpeek vs Context7 vs GitMCP vs Ref Tools |
+| [Architecture](docs/internals/architecture.md)    | How it works inside                        |
+| [Security](SECURITY.md)                           | Reporting vulnerabilities                  |
+| [Contributing](CONTRIBUTING.md)                   | Dev setup, conventions                     |
 
 <br />
 
@@ -392,12 +394,12 @@ What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, 
 ## Development
 
 ```bash
-git clone https://github.com/tamimbinhakim/docpilot.git
-cd docpilot
+git clone https://github.com/tamimbinhakim/ctxpeek.git
+cd ctxpeek
 pnpm install
 pnpm build
 pnpm test
-pnpm dev          # runs docpilot from source
+pnpm dev          # runs ctxpeek from source
 ```
 
 Conventions and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The repo uses TypeScript (Node ≥ 20, strict everything), Biome for JS/TS, prettier for markdown, ruff for the few Python scripts under `scripts/`, commitlint with [Conventional Commits](https://www.conventionalcommits.org/), changesets for releases, and vitest for tests.
@@ -406,11 +408,11 @@ Conventions and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The repo 
 
 ## Become a Sponsor!
 
-docpilot is free and built in the open. If your team relies on it, sponsoring covers the maintenance and the next round of features.
+ctxpeek is free and built in the open. If your team relies on it, sponsoring covers the maintenance and the next round of features.
 
 <div align="center">
 
-<a href="https://github.com/sponsors/tamimbinhakim"><b>❤︎ &nbsp;Sponsor docpilot on GitHub</b></a>
+<a href="https://github.com/sponsors/tamimbinhakim"><b>❤︎ &nbsp;Sponsor ctxpeek on GitHub</b></a>
 
 </div>
 

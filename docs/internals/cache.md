@@ -1,11 +1,11 @@
 # Cache
 
-The cache is the difference between docpilot feeling instant and docpilot feeling like one network round-trip per file. End-user view is in [`guides/caching.md`](../guides/caching.md); this is the internals.
+The cache is the difference between ctxpeek feeling instant and ctxpeek feeling like one network round-trip per file. End-user view is in [`guides/caching.md`](../guides/caching.md); this is the internals.
 
 ## Layout
 
 ```
-${env-paths('docpilot').cache}/
+${env-paths('ctxpeek').cache}/
 ├── blobs/
 │   └── ab/
 │       └── ab12cdef…             raw bytes, keyed by snapshot/path hash
@@ -39,7 +39,7 @@ Ref records are cached for 24 hours by `resolveSnapshot`. Tree records are keyed
 
 `etag-map.json` is a flat map from `{owner}/{repo}/{path}@{sha}` to its ETag. Used by Step 1 of the [fetch strategy](fetch-strategy.md) to send `If-None-Match` on every conditional GET.
 
-Authenticated 304 responses do **not** count against the primary rate limit. The hot path prefers local cache hits, but ETags still reduce cost when docpilot falls back to REST and has a previous validator.
+Authenticated 304 responses do **not** count against the primary rate limit. The hot path prefers local cache hits, but ETags still reduce cost when ctxpeek falls back to REST and has a previous validator.
 
 ## GC
 
@@ -50,7 +50,7 @@ Authenticated 304 responses do **not** count against the primary rate limit. The
 
 GC currently runs manually:
 
-- `docpilot cache gc`
+- `ctxpeek cache gc`
 
 ## Concurrency
 
@@ -60,4 +60,4 @@ A failed/abandoned writer (process killed mid-write) leaves a stale lock. `prope
 
 ## Migration
 
-The current cache files are JSON and blob files with simple versioned records where needed. No automatic cache migration path has shipped yet; incompatible future changes should either tolerate old files or document when users need to run `docpilot cache gc` or remove the cache directory.
+The current cache files are JSON and blob files with simple versioned records where needed. No automatic cache migration path has shipped yet; incompatible future changes should either tolerate old files or document when users need to run `ctxpeek cache gc` or remove the cache directory.

@@ -1,4 +1,4 @@
-# Contributing to docpilot
+# Contributing to ctxpeek
 
 Thanks for your interest in contributing. This document covers what we expect from contributions and how to get a working dev environment.
 
@@ -10,9 +10,9 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By particip
 
 For **security issues**, please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
-For everything else, open an issue at <https://github.com/tamimbinhakim/docpilot/issues>. Pick the matching template (bug, feature, docs). Include:
+For everything else, open an issue at <https://github.com/tamimbinhakim/ctxpeek/issues>. Pick the matching template (bug, feature, docs). Include:
 
-1. The output of `npx -y docpilot doctor` (redact your token)
+1. The output of `npx -y ctxpeek doctor` (redact your token)
 2. Your MCP client + version
 3. The exact failing tool call (or expected behavior)
 
@@ -27,8 +27,8 @@ For everything else, open an issue at <https://github.com/tamimbinhakim/docpilot
 ### Clone & install
 
 ```bash
-git clone https://github.com/tamimbinhakim/docpilot.git
-cd docpilot
+git clone https://github.com/tamimbinhakim/ctxpeek.git
+cd ctxpeek
 pnpm install
 pnpm build
 pnpm test
@@ -37,7 +37,7 @@ pnpm test
 ### Run from source
 
 ```bash
-pnpm --filter docpilot dev
+pnpm --filter ctxpeek dev
 ```
 
 This runs the server from `src/` with `tsx watch`. To attach a real MCP client to your local build, point its config at the absolute path:
@@ -45,9 +45,9 @@ This runs the server from `src/` with `tsx watch`. To attach a real MCP client t
 ```jsonc
 {
   "mcpServers": {
-    "docpilot-dev": {
+    "ctxpeek-dev": {
       "command": "node",
-      "args": ["/abs/path/to/docpilot/packages/docpilot/dist/server.js"],
+      "args": ["/abs/path/to/ctxpeek/packages/ctxpeek/dist/server.js"],
     },
   },
 }
@@ -59,14 +59,14 @@ See [README.md](README.md#documentation) for the full doc map. The short version
 
 ```
 packages/
-  docpilot/        the npm package shipped to users
-  docpilot-core/       shared types and errors (internal)
+  ctxpeek/        the npm package shipped to users
+  ctxpeek-core/       shared types and errors (internal)
 docs/
   guides/              how-to articles
   reference/           tool / config / spec references
   internals/           architecture, fetch strategy, cache
 examples/
-  recipes/             sample .docpilot.recipe.toml files
+  recipes/             sample .ctxpeek.recipe.toml files
 .github/workflows/     CI/CD pipelines
 ```
 
@@ -93,7 +93,7 @@ pnpm format
 ## Tests
 
 - **Unit tests** (`packages/*/test/unit/**`): vitest, fast, no network. Run via `pnpm test`.
-- **Integration tests** (`packages/docpilot/test/integration/**`): vitest, hits real GitHub. Skipped in CI unless `GITHUB_TOKEN` is set as a secret. Run locally via `pnpm --filter docpilot test:integration`.
+- **Integration tests** (`packages/ctxpeek/test/integration/**`): vitest, hits real GitHub. Skipped in CI unless `GITHUB_TOKEN` is set as a secret. Run locally via `pnpm --filter ctxpeek test:integration`.
 - **Fixtures** live in `test/fixtures/`. For HTTP, prefer MSW (`msw`) over snapshots of real responses.
 
 A new feature must come with at least one unit test.
@@ -121,4 +121,4 @@ Releases are managed by [changesets](https://github.com/changesets/changesets) v
 
 - General questions: GitHub Discussions
 - Real-time chat: linked from the README when we have it
-- Security: <security@docpilot.dev> (see [SECURITY.md](SECURITY.md))
+- Security: <security@ctxpeek.dev> (see [SECURITY.md](SECURITY.md))

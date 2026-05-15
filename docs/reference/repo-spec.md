@@ -1,8 +1,8 @@
 # Repo spec grammar
 
-The single string `[forge:]owner/repo[@ref][#subpath]` is the canonical input across every docpilot tool.
+The single string `[forge:]owner/repo[@ref][#subpath]` is the canonical input across every ctxpeek tool.
 
-This format is the product model, not just syntax. docpilot does not ask an agent to pick a hosted library ID and hope the right version is indexed. It asks for the source repo plus the exact git address the user cares about: default branch, release tag, feature branch, commit sha, and optionally a monorepo subdirectory.
+This format is the product model, not just syntax. ctxpeek does not ask an agent to pick a hosted library ID and hope the right version is indexed. It asks for the source repo plus the exact git address the user cares about: default branch, release tag, feature branch, commit sha, and optionally a monorepo subdirectory.
 
 ## Grammar
 
@@ -17,7 +17,7 @@ Subpath     = .+
 
 ## Forge prefixes
 
-The optional forge prefix selects which git host docpilot talks to. Bare specs default to GitHub.
+The optional forge prefix selects which git host ctxpeek talks to. Bare specs default to GitHub.
 
 | Prefix               | Forge           | Notes                               |
 | -------------------- | --------------- | ----------------------------------- |
@@ -27,7 +27,7 @@ The optional forge prefix selects which git host docpilot talks to. Bare specs d
 | `gl:` / `gitlab:`    | GitLab          | `GITLAB_TOKEN` for private repos    |
 | `bb:` / `bitbucket:` | Bitbucket Cloud | `BITBUCKET_TOKEN` for private repos |
 
-Additional forges (Codeberg, Gitea, sourcehut, …) can be added by dropping one file into [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/) — see [extending docpilot](../guides/extending.md).
+Additional forges (Codeberg, Gitea, sourcehut, …) can be added by dropping one file into [`packages/ctxpeek/src/fetch/forges/`](../../packages/ctxpeek/src/fetch/forges/) — see [extending ctxpeek](../guides/extending.md).
 
 ## Rules
 

@@ -1,6 +1,6 @@
 # Fetch strategy
 
-The prescriptive part of the design. The difference between docpilot feeling pleasant or painful at scale comes down to the order in this chain.
+The prescriptive part of the design. The difference between ctxpeek feeling pleasant or painful at scale comes down to the order in this chain.
 
 ## Numbers that drive the design
 
@@ -32,13 +32,13 @@ https://cdn.jsdelivr.net/gl/{owner}/{repo}@{commit_sha}/{path}
 
 GitHub uses CDN first whenever CDN reads are enabled. GitLab uses CDN first when preferred, unauthenticated, or rate-limit degraded. Bitbucket has no jsDelivr equivalent and skips this step.
 
-jsDelivr permanently caches by commit-pinned URL. Limits: **50 MB per file** on the `/gh/` path. Branch-aliased URLs cache 12 h; tag-aliased 7 d; commit-pinned essentially forever. docpilot resolves refs to commit shas before fetching files.
+jsDelivr permanently caches by commit-pinned URL. Limits: **50 MB per file** on the `/gh/` path. Branch-aliased URLs cache 12 h; tag-aliased 7 d; commit-pinned essentially forever. ctxpeek resolves refs to commit shas before fetching files.
 
-**This is the main rate-limit win:** unauthenticated docpilot users can pull many GitHub docs files through jsDelivr with zero impact on GitHub's primary or anonymous limits.
+**This is the main rate-limit win:** unauthenticated ctxpeek users can pull many GitHub docs files through jsDelivr with zero impact on GitHub's primary or anonymous limits.
 
 ### Step 2 — Conditional GET on REST contents
 
-When CDN is disabled, unavailable, or unsupported for the forge, docpilot calls the forge contents endpoint with `If-None-Match` if it has an ETag.
+When CDN is disabled, unavailable, or unsupported for the forge, ctxpeek calls the forge contents endpoint with `If-None-Match` if it has an ETag.
 
 - **304** → use the cached body if present. Cost: **0** against GitHub primary rate limit when correctly authorized.
 - **200** → save the new blob + ETag. Cost: **1**.
@@ -55,7 +55,7 @@ GraphQL is not part of the file-content fetch chain. It is used by resolver and 
 
 ## Tree truncation
 
-For repos with >100k files (rare for docs use cases), GitHub REST can return `"truncated": true`. docpilot surfaces that state in `list_docs` and recommends using `#subpath` to scope the next call.
+For repos with >100k files (rare for docs use cases), GitHub REST can return `"truncated": true`. ctxpeek surfaces that state in `list_docs` and recommends using `#subpath` to scope the next call.
 
 ## Secondary-limit posture
 
@@ -67,5 +67,5 @@ For repos with >100k files (rare for docs use cases), GitHub REST can return `"t
 ## Open tradeoffs
 
 - **jsDelivr dependence.** Free CDN run by donations. Outage degrades us to authenticated REST (still works) or anonymous REST (degraded). Multi-CDN failover is not implemented in the current baseline.
-- **`raw.githubusercontent.com` opacity.** Rate-limited since 2025-05-08; exact unauth quota undocumented. This is _why_ docpilot defaults to CDN for raw content even when a PAT is present.
+- **`raw.githubusercontent.com` opacity.** Rate-limited since 2025-05-08; exact unauth quota undocumented. This is _why_ ctxpeek defaults to CDN for raw content even when a PAT is present.
 - **GraphQL has no ETag.** For repeated file-content flows, local cache plus REST validators is the better fit. GraphQL stays out of blob fetches.

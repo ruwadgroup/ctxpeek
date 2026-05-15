@@ -1,4 +1,4 @@
-# docpilot docs
+# ctxpeek docs
 
 End-user and contributor docs. The top-level [`README.md`](../README.md) is the front door; this directory is the reference.
 
@@ -15,14 +15,14 @@ docs/
 │   └── troubleshooting.md       // Windows, ENOENT, rate limits
 ├── reference/
 │   ├── tools.md                 // Tool input / output / examples
-│   ├── configuration.md         // All keys in .docpilot.toml
+│   ├── configuration.md         // All keys in .ctxpeek.toml
 │   ├── repo-spec.md             // [forge:]owner/repo[@ref][#subpath] grammar
 │   └── exit-codes.md            // CLI exit codes
 ├── internals/
 │   ├── architecture.md          // Layer-by-layer design + plug-in registries
 │   ├── fetch-strategy.md        // Cache → CDN → REST/ETag
 │   └── cache.md                 // Content-addressed blob store
-└── comparison.md                // docpilot vs Context7 vs GitMCP vs Ref Tools
+└── comparison.md                // ctxpeek vs Context7 vs GitMCP vs Ref Tools
 ```
 
 ## Conventions

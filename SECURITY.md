@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-docpilot is pre-1.0. Only the latest minor release on the `main` branch is supported with security fixes.
+ctxpeek is pre-1.0. Only the latest minor release on the `main` branch is supported with security fixes.
 
 | Version          | Supported |
 | ---------------- | --------- |
@@ -15,8 +15,8 @@ Please **do not** open a public GitHub issue for security reports.
 
 Instead, use one of:
 
-1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/tamimbinhakim/docpilot/security/advisories/new>.
-2. Email <security@docpilot.dev> with a description and reproduction steps.
+1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/tamimbinhakim/ctxpeek/security/advisories/new>.
+2. Email <security@ctxpeek.dev> with a description and reproduction steps.
 
 We aim to acknowledge receipt within 72 hours and to provide a remediation plan within 7 days for high-severity issues.
 
@@ -24,9 +24,9 @@ We aim to acknowledge receipt within 72 hours and to provide a remediation plan 
 
 In scope:
 
-- The `docpilot` npm package and its runtime behavior
-- The `docpilot` CLI binary
-- Configuration parsing (`.docpilot.toml`, `.docpilot.recipe.toml`)
+- The `ctxpeek` npm package and its runtime behavior
+- The `ctxpeek` CLI binary
+- Configuration parsing (`.ctxpeek.toml`, `.ctxpeek.recipe.toml`)
 - Cache integrity (snapshot-addressed blob store)
 - Token handling (`GITHUB_TOKEN`, `GITLAB_TOKEN`, `BITBUCKET_TOKEN`, and `gh auth token`)
 - The repo string parser (`owner/repo[@ref][#subpath]`)
@@ -39,7 +39,7 @@ Out of scope:
 
 ## Threat model summary
 
-docpilot's premise is that **the canonical source for a library's docs is its git repository**. The threat model follows from that:
+ctxpeek's premise is that **the canonical source for a library's docs is its git repository**. The threat model follows from that:
 
 - We trust the bytes from `github.com/{owner}/{repo}` and the same content via jsDelivr (commit-pinned).
 - We do **not** introduce a third-party instruction channel that could carry prompt-injection payloads (no registry, no "custom rules" surface).

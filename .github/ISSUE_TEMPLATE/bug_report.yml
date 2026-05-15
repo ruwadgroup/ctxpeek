@@ -6,13 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug. Please run `npx -y docpilot doctor` and paste the output below (redact your token).
+        Thanks for taking the time to file a bug. Please run `npx -y ctxpeek doctor` and paste the output below (redact your token).
 
   - type: textarea
     id: doctor
     attributes:
-      label: docpilot doctor output
-      description: Output of `npx -y docpilot doctor` (redact your token)
+      label: ctxpeek doctor output
+      description: Output of `npx -y ctxpeek doctor` (redact your token)
       render: text
     validations:
       required: true
@@ -46,7 +46,7 @@ body:
         OS: macOS 14.5 / Windows 11 / Ubuntu 24.04
         Node: 20.18.0
         pnpm (if dev install): 9.12.0
-        docpilot version: 0.x.y
+        ctxpeek version: 0.x.y
 
   - type: checkboxes
     id: confirm
@@ -55,5 +55,5 @@ body:
       options:
         - label: I searched existing issues and didn't find a duplicate
           required: true
-        - label: I'm on the latest version (`npx -y docpilot@latest --version`)
+        - label: I'm on the latest version (`npx -y ctxpeek@latest --version`)
           required: true

@@ -1,0 +1,60 @@
+{
+  "name": "@ctxpeek/core",
+  "version": "0.0.0",
+  "description": "Shared types, schemas, and errors for ctxpeek. Internal package — not published independently in v0.1.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/tamimbinhakim/ctxpeek/tree/main/packages/ctxpeek-core",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tamimbinhakim/ctxpeek.git",
+    "directory": "packages/ctxpeek-core"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.ts",
+      "import": "./dist/schema/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=default --coverage",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

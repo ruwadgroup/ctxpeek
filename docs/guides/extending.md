@@ -1,17 +1,17 @@
-# Extending docpilot
+# Extending ctxpeek
 
-docpilot ships four plug-in registries. Adding a new git forge, a new language's lockfile, a package manifest verifier, or a package-manager registry is **one file**.
+ctxpeek ships four plug-in registries. Adding a new git forge, a new language's lockfile, a package manifest verifier, or a package-manager registry is **one file**.
 
-The pattern is the same everywhere: a `define*(config)` factory self-registers with a global registry on module load. Add one line to the sibling `index.ts` barrel and the rest of docpilot picks it up automatically.
+The pattern is the same everywhere: a `define*(config)` factory self-registers with a global registry on module load. Add one line to the sibling `index.ts` barrel and the rest of ctxpeek picks it up automatically.
 
 ---
 
 ## Add a new git forge
 
-Drop a file into [`packages/docpilot/src/fetch/forges/`](../../packages/docpilot/src/fetch/forges/):
+Drop a file into [`packages/ctxpeek/src/fetch/forges/`](../../packages/ctxpeek/src/fetch/forges/):
 
 ```ts
-// packages/docpilot/src/fetch/forges/codeberg.ts
+// packages/ctxpeek/src/fetch/forges/codeberg.ts
 import { defineForge } from "../defineForge.js";
 import type { ForgeClient } from "../forgeClient.js";
 
@@ -34,7 +34,7 @@ export default defineForge({
 });
 ```
 
-Add one line to [`packages/docpilot/src/fetch/forges/index.ts`](../../packages/docpilot/src/fetch/forges/index.ts):
+Add one line to [`packages/ctxpeek/src/fetch/forges/index.ts`](../../packages/ctxpeek/src/fetch/forges/index.ts):
 
 ```ts
 import codeberg from "./codeberg.js";
@@ -43,16 +43,16 @@ export const BUILT_IN_FORGES = [github, gitlab, bitbucket, codeberg] as const;
 
 That's it. Repo specs `codeberg:owner/repo` (or `cb:owner/repo`) now work end-to-end. The repo-spec parser, `doctor`, and every tool route to the new forge automatically.
 
-See [`packages/docpilot/src/fetch/forges/gitlab.ts`](../../packages/docpilot/src/fetch/forges/gitlab.ts) for a complete reference implementation against a non-GitHub REST API.
+See [`packages/ctxpeek/src/fetch/forges/gitlab.ts`](../../packages/ctxpeek/src/fetch/forges/gitlab.ts) for a complete reference implementation against a non-GitHub REST API.
 
 ---
 
 ## Add a new lockfile parser
 
-Drop a file into [`packages/docpilot/src/lockfile/parsers/`](../../packages/docpilot/src/lockfile/parsers/):
+Drop a file into [`packages/ctxpeek/src/lockfile/parsers/`](../../packages/ctxpeek/src/lockfile/parsers/):
 
 ```ts
-// packages/docpilot/src/lockfile/parsers/swift.ts
+// packages/ctxpeek/src/lockfile/parsers/swift.ts
 import { defineLockfileParser } from "../defineLockfileParser.js";
 
 export default defineLockfileParser({
@@ -66,7 +66,7 @@ export default defineLockfileParser({
 });
 ```
 
-Add one line to [`packages/docpilot/src/lockfile/parsers/index.ts`](../../packages/docpilot/src/lockfile/parsers/index.ts):
+Add one line to [`packages/ctxpeek/src/lockfile/parsers/index.ts`](../../packages/ctxpeek/src/lockfile/parsers/index.ts):
 
 ```ts
 import swift from "./swift.js";
@@ -79,10 +79,10 @@ export const BUILT_IN_LOCKFILE_PARSERS = [/* ... */, swift] as const;
 
 ## Add a package manifest verifier
 
-Drop a file into [`packages/docpilot/src/resolve/packageManifests/`](../../packages/docpilot/src/resolve/packageManifests/):
+Drop a file into [`packages/ctxpeek/src/resolve/packageManifests/`](../../packages/ctxpeek/src/resolve/packageManifests/):
 
 ```ts
-// packages/docpilot/src/resolve/packageManifests/swift.ts
+// packages/ctxpeek/src/resolve/packageManifests/swift.ts
 import { definePackageManifest } from "../definePackageManifest.js";
 
 export default definePackageManifest({
@@ -93,7 +93,7 @@ export default definePackageManifest({
 });
 ```
 
-Add one line to [`packages/docpilot/src/resolve/packageManifests/index.ts`](../../packages/docpilot/src/resolve/packageManifests/index.ts):
+Add one line to [`packages/ctxpeek/src/resolve/packageManifests/index.ts`](../../packages/ctxpeek/src/resolve/packageManifests/index.ts):
 
 ```ts
 import swift from "./swift.js";
@@ -106,10 +106,10 @@ The resolver uses this verifier as a positive signal after a registry candidate 
 
 ## Add a new package-manager registry probe
 
-Drop a file into [`packages/docpilot/src/resolve/registries/`](../../packages/docpilot/src/resolve/registries/):
+Drop a file into [`packages/ctxpeek/src/resolve/registries/`](../../packages/ctxpeek/src/resolve/registries/):
 
 ```ts
-// packages/docpilot/src/resolve/registries/maven.ts
+// packages/ctxpeek/src/resolve/registries/maven.ts
 import { HttpClient } from "../../util/index.js";
 import { candidateFromUrl, defineRegistry } from "../defineRegistry.js";
 
@@ -135,7 +135,7 @@ export default defineRegistry({
 });
 ```
 
-Add one line to [`packages/docpilot/src/resolve/registries/index.ts`](../../packages/docpilot/src/resolve/registries/index.ts) and add `"maven"` to the `Ecosystem` union in [`packages/docpilot/src/config.ts`](../../packages/docpilot/src/config.ts).
+Add one line to [`packages/ctxpeek/src/resolve/registries/index.ts`](../../packages/ctxpeek/src/resolve/registries/index.ts) and add `"maven"` to the `Ecosystem` union in [`packages/ctxpeek/src/config.ts`](../../packages/ctxpeek/src/config.ts).
 
 `resolve_repo` will now race the Maven probe in parallel with the others.
 
@@ -148,4 +148,4 @@ Add one line to [`packages/docpilot/src/resolve/registries/index.ts`](../../pack
 - The factory `create` / `parse` / `probe` returns are pure — no module-scoped mutable state.
 - Network calls go through the injected `HttpClient` / `ctx.http` so every outbound request is logged and rate-limited.
 
-If you add a plug-in, please also add a unit test under [`packages/docpilot/test/unit/`](../../packages/docpilot/test/unit/) — see `lockfile.test.ts` for the shape.
+If you add a plug-in, please also add a unit test under [`packages/ctxpeek/test/unit/`](../../packages/ctxpeek/test/unit/) — see `lockfile.test.ts` for the shape.

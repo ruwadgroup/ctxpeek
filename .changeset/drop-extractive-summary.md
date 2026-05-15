@@ -1,5 +1,5 @@
 ---
-"docpilot": patch
+"ctxpeek": patch
 ---
 
 Remove the auto-generated `summary` field from `fetch_doc` frontmatter.

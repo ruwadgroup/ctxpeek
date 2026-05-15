@@ -11,14 +11,14 @@
 *                                   @tamimbinhakim
 
 # Packages
-/packages/docpilot/                 @tamimbinhakim
-/packages/docpilot-core/            @tamimbinhakim
+/packages/ctxpeek/                 @tamimbinhakim
+/packages/ctxpeek-core/            @tamimbinhakim
 
 # Subsystems (split out when there are real owners)
-/packages/docpilot/src/fetch/       @tamimbinhakim
-/packages/docpilot/src/cache/       @tamimbinhakim
-/packages/docpilot/src/index/       @tamimbinhakim
-/packages/docpilot/src/resolve/     @tamimbinhakim
+/packages/ctxpeek/src/fetch/       @tamimbinhakim
+/packages/ctxpeek/src/cache/       @tamimbinhakim
+/packages/ctxpeek/src/index/       @tamimbinhakim
+/packages/ctxpeek/src/resolve/     @tamimbinhakim
 
 # CI / build
 /.github/                           @tamimbinhakim

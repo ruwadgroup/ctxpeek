@@ -1,16 +1,16 @@
 {
-  "name": "docpilot",
+  "name": "ctxpeek",
   "private": true,
   "version": "0.0.0",
-  "description": "Local-first MCP server that turns any public GitHub, GitLab, or Bitbucket repo into fresh, version-pinned documentation for AI coding assistants.",
+  "description": "ctxpeek (pronounced Context Peek) is a local-first MCP server for fresh, version-pinned repo docs.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/tamimbinhakim/docpilot#readme",
+  "homepage": "https://github.com/tamimbinhakim/ctxpeek#readme",
   "bugs": {
-    "url": "https://github.com/tamimbinhakim/docpilot/issues"
+    "url": "https://github.com/tamimbinhakim/ctxpeek/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tamimbinhakim/docpilot.git"
+    "url": "git+https://github.com/tamimbinhakim/ctxpeek.git"
   },
   "type": "module",
   "engines": {
@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "pnpm -r --filter './packages/*' run build",
-    "dev": "pnpm --filter docpilot run dev",
+    "dev": "pnpm --filter ctxpeek run dev",
     "test": "pnpm build && pnpm -r --filter './packages/*' run test",
     "test:ci": "pnpm build && pnpm -r --filter './packages/*' run test:ci",
     "typecheck": "pnpm build && pnpm -r --filter './packages/*' run typecheck",

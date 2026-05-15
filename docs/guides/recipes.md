@@ -7,11 +7,11 @@ A **recipe** is a local TOML file that bundles pre-pinned repos. Installing a re
 Two scenarios:
 
 1. **Project-local stability.** Your team uses a fixed stack — Next.js 15, Drizzle 0.30, Clerk v5 — and you'd like every contributor (and CI) to query the same versions deterministically.
-2. **Cold-start avoidance.** The first time docpilot sees a repo, it does a tree fetch + a few file reads. Recipes do that work once, ahead of time.
+2. **Cold-start avoidance.** The first time ctxpeek sees a repo, it does a tree fetch + a few file reads. Recipes do that work once, ahead of time.
 
 ## Format
 
-`.docpilot.recipe.toml`:
+`.ctxpeek.recipe.toml`:
 
 ```toml
 [[repo]]
@@ -26,7 +26,7 @@ alias = "drizzle"
 spec  = "clerk/javascript@v5#packages/clerk-js"
 alias = "clerk"
 
-# Anything in [[repo]].spec is also a docpilot tool input — full owner/repo[@ref][#subpath].
+# Anything in [[repo]].spec is also a ctxpeek tool input — full owner/repo[@ref][#subpath].
 ```
 
 `alias` is accepted as recipe metadata, but aliases are not currently registered as tool inputs. Use the full `spec` in tool calls.
@@ -35,10 +35,10 @@ alias = "clerk"
 
 ```bash
 # From a local file
-npx -y docpilot recipe install ./.docpilot.recipe.toml
+npx -y ctxpeek recipe install ./.ctxpeek.recipe.toml
 
 # Equivalent shorthand
-npx -y docpilot warm ./.docpilot.recipe.toml
+npx -y ctxpeek warm ./.ctxpeek.recipe.toml
 ```
 
 Idempotent — re-running reuses cached refs and trees where they are still valid.
@@ -47,13 +47,13 @@ Idempotent — re-running reuses cached refs and trees where they are still vali
 
 Recipes are plain TOML. Common patterns:
 
-- Commit `.docpilot.recipe.toml` into your repo's root
+- Commit `.ctxpeek.recipe.toml` into your repo's root
 - Share the TOML contents out-of-band for ad-hoc reuse
-- Maintain a curated list under `awesome-docpilot-recipes` (community)
+- Maintain a curated list under `awesome-ctxpeek-recipes` (community)
 
 ## Trust
 
-Recipes are **user-trusted input**. A recipe can pin to any repo spec supported by docpilot, and that repo's content can be delivered to your assistant. There is no centralized registry of "verified" recipes; if you install a recipe from a stranger, you are extending trust to whatever repos that recipe pins.
+Recipes are **user-trusted input**. A recipe can pin to any repo spec supported by ctxpeek, and that repo's content can be delivered to your assistant. There is no centralized registry of "verified" recipes; if you install a recipe from a stranger, you are extending trust to whatever repos that recipe pins.
 
 This is the same trust posture as `npm install` from a stranger's package.json. Read recipes before installing them, and prefer recipes that pin to specific tags or shas (not `@main`).
 

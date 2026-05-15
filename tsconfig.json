@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "files": [],
-  "references": [{ "path": "./packages/docpilot-core" }, { "path": "./packages/docpilot" }]
+  "references": [{ "path": "./packages/ctxpeek-core" }, { "path": "./packages/ctxpeek" }]
 }
