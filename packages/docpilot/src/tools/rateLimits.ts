@@ -2,11 +2,12 @@ import { z } from "zod";
 import type { RateLimitSnapshot } from "../fetch/ratelimit.js";
 import type { ToolContext } from "./context.js";
 
-export const rateLimitsInput = z.object({
-  live: z.boolean().optional(),
-});
+export const rateLimitsInput = z.object({});
 
 export type RateLimitsInput = z.infer<typeof rateLimitsInput>;
+
+const GITHUB_CHECK_FAILURE_COOLDOWN_MS = 60_000;
+const GITHUB_CHECK_TIMEOUT_MS = 2500;
 
 type GitHubLimitResource = {
   readonly limit: number;
@@ -19,24 +20,31 @@ type GitHubRateLimitResponse = {
   readonly resources?: Partial<Record<"core" | "search" | "graphql", GitHubLimitResource>>;
 };
 
+type GithubCheckResult =
+  | { readonly ok: true; readonly lines: string[] }
+  | { readonly ok: false; readonly lines: string[] };
+
 export function buildRateLimitsTool(ctx: ToolContext) {
-  return async (input: RateLimitsInput): Promise<string> => {
-    const live = input.live ?? true;
+  let githubFailureRetryAt = 0;
+
+  return async (_input: RateLimitsInput): Promise<string> => {
     const lines: string[] = [];
     lines.push("# Rate limits");
     lines.push("");
 
-    if (live) {
-      lines.push(...(await renderLiveGithubLimits(ctx)));
-      lines.push("");
-      lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: false }));
-    } else {
-      lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: true }));
-      lines.push("");
-      lines.push(
-        "Live GitHub check skipped. Primary values above are only the last response headers docpilot observed.",
-      );
+    const github = await renderGithubRateLimits(ctx, githubFailureRetryAt);
+    let nextRetry: Date | undefined;
+    if (github.ok) {
+      githubFailureRetryAt = 0;
+    } else if (githubFailureRetryAt <= Date.now()) {
+      githubFailureRetryAt = Date.now() + GITHUB_CHECK_FAILURE_COOLDOWN_MS;
+      nextRetry = new Date(githubFailureRetryAt);
     }
+
+    lines.push(...github.lines);
+    if (nextRetry) lines.push(`Next retry: ${nextRetry.toISOString()}.`);
+    lines.push("");
+    lines.push(...renderLocalSnapshot(ctx.limiter.snapshot(), { includePrimary: !github.ok }));
 
     return lines.join("\n");
   };
@@ -65,7 +73,19 @@ function renderLocalSnapshot(
   return lines;
 }
 
-async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
+async function renderGithubRateLimits(ctx: ToolContext, retryAt: number): Promise<GithubCheckResult> {
+  const now = Date.now();
+  if (retryAt > now) {
+    return {
+      ok: false,
+      lines: [
+        "## GitHub API",
+        "",
+        `GitHub check delayed after the previous failure. Next retry: ${new Date(retryAt).toISOString()}.`,
+      ],
+    };
+  }
+
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
@@ -77,14 +97,17 @@ async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
     const res = await ctx.http.fetch("https://api.github.com/rate_limit", {
       headers,
       maxRetries: 0,
-      timeoutMs: 6000,
+      timeoutMs: GITHUB_CHECK_TIMEOUT_MS,
     });
     ctx.limiter.observe(res.headers);
     if (res.status !== 200) {
-      return ["## GitHub API (live)", "", `GitHub returned HTTP ${res.status}.`];
+      return {
+        ok: false,
+        lines: ["## GitHub API", "", `GitHub returned HTTP ${res.status}. Using local state.`],
+      };
     }
     const data = JSON.parse(res.body.toString("utf8")) as GitHubRateLimitResponse;
-    const lines = ["## GitHub API (live)", ""];
+    const lines = ["## GitHub API", ""];
     for (const name of ["core", "search", "graphql"] as const) {
       const resource = data.resources?.[name];
       if (!resource) continue;
@@ -92,9 +115,12 @@ async function renderLiveGithubLimits(ctx: ToolContext): Promise<string[]> {
         `${name}: ${resource.remaining}/${resource.limit} remaining, used ${resource.used}, reset ${formatReset(resource.reset)}`,
       );
     }
-    return lines;
+    return { ok: true, lines };
   } catch (err) {
-    return ["## GitHub API (live)", "", `Check failed: ${String(err)}`];
+    return {
+      ok: false,
+      lines: ["## GitHub API", "", `GitHub check unavailable: ${String(err)}. Using local state.`],
+    };
   } finally {
     ctx.limiter.release();
   }

@@ -223,7 +223,7 @@ changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
 related_repos // Scrape README + llms.txt for github.com peer links — "often used with…".
 get_issues    // Search a repo's issues / PRs (separate /search/issues bucket, 30/min).
 cache_status  // Diagnostic: cache hits, sizes, snapshot sha, last revalidate.
-rate_limits   // Live GitHub core/search/graphql buckets plus local throttle state.
+rate_limits   // GitHub buckets plus local throttle state, with automatic fallback.
 ```
 
 Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).

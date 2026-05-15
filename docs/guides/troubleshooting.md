@@ -44,7 +44,7 @@ Inspect the local cache state any time:
 npx -y docpilot cache status
 ```
 
-Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. Use `rate_limits({ live: false })` when you want to avoid the live GitHub check.
+Inside MCP clients, call `rate_limits` for GitHub's authoritative `core`, `search`, and `graphql` buckets plus local throttler state. If GitHub is unreachable, docpilot detects that automatically, pauses GitHub checks briefly, and falls back to the local state plus the last primary headers it observed.
 
 ## "Library not found" from `resolve_repo`
 

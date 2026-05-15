@@ -16,7 +16,7 @@ function makeContext(limiter: RateLimiter, fetch: ToolContext["http"]["fetch"]):
 }
 
 describe("rate_limits tool", () => {
-  it("checks GitHub live by default without repeating primary headers locally", async () => {
+  it("checks GitHub automatically without repeating primary headers locally", async () => {
     const limiter = new RateLimiter();
     const reset = Math.floor(Date.now() / 1000) + 3600;
     const ctx = makeContext(limiter, async () => ({
@@ -38,31 +38,35 @@ describe("rate_limits tool", () => {
 
     const out = await buildRateLimitsTool(ctx)({});
 
-    expect(out).toContain("## GitHub API (live)");
+    expect(out).toContain("## GitHub API");
     expect(out).toContain("core: 4212/5000 remaining");
     expect(out).toContain("## Local throttler");
     expect(out).toContain("Mode:                normal");
     expect(out).not.toContain("Last GitHub primary");
-    expect(out).not.toContain("Pass `{ live: true }`");
   });
 
-  it("shows cached primary headers only when live checks are skipped", async () => {
+  it("falls back to cached primary headers when GitHub is unreachable", async () => {
     const limiter = new RateLimiter();
     const reset = Math.floor(Date.now() / 1000) + 3600;
     limiter.observe({
       "x-ratelimit-remaining": "42",
       "x-ratelimit-reset": String(reset),
     });
-    let called = false;
+    let calls = 0;
     const ctx = makeContext(limiter, async () => {
-      called = true;
-      throw new Error("unexpected live check");
+      calls += 1;
+      throw new Error("network blocked");
     });
+    const handler = buildRateLimitsTool(ctx);
 
-    const out = await buildRateLimitsTool(ctx)({ live: false });
+    const first = await handler({});
+    const second = await handler({});
 
-    expect(called).toBe(false);
-    expect(out).toContain("Last GitHub primary: 42");
-    expect(out).toContain("Live GitHub check skipped.");
+    expect(calls).toBe(1);
+    expect(first).toContain("GitHub check unavailable: Error: network blocked.");
+    expect(first).toContain("Next retry:");
+    expect(first).toContain("Last GitHub primary: 42");
+    expect(second).toContain("GitHub check delayed after the previous failure.");
+    expect(second).toContain("Last GitHub primary: 42");
   });
 });

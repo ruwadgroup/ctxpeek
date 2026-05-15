@@ -187,7 +187,7 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
 
   registerSimpleTool(server, "rate_limits", rateLimitsInput, {
     description:
-      "Show GitHub rate limits and local throttler state. Pass `{ live: false }` to skip the live GitHub check.",
+      "Show GitHub rate limits and local throttler state, with automatic local fallback when GitHub is unreachable.",
     handler: buildRateLimitsTool(ctx),
   });
 

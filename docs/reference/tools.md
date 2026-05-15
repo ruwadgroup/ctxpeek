@@ -219,16 +219,14 @@ Pass `{ repo: "owner/repo" }` for a per-repo ref breakdown.
 
 ---
 
-## `rate_limits(opts?)`
+## `rate_limits()`
 
-Show GitHub's live `/rate_limit` view and local throttler accounting.
+Show GitHub's `/rate_limit` view and local throttler accounting. If GitHub is unreachable, docpilot falls back to local state and briefly delays follow-up GitHub checks.
 
 **Input**
 
 ```ts
-{
-  live?: boolean // default true; false skips the live GitHub check
-}
+{}
 ```
 
 **Output**
@@ -236,7 +234,7 @@ Show GitHub's live `/rate_limit` view and local throttler accounting.
 ```markdown
 # Rate limits
 
-## GitHub API (live)
+## GitHub API
 
 core: 4212/5000 remaining, used 788, reset 2026-05-15T07:00:00.000Z
 search: 30/30 remaining, used 0, reset 2026-05-15T06:06:00.000Z
@@ -250,4 +248,4 @@ Secondary budget:    60/min (59.8/60 tokens available)
 Concurrency:         8 max
 ```
 
-Use `{ live: false }` to skip the GitHub call. In that mode, the local section also includes the last primary headers docpilot observed.
+When GitHub cannot be reached, the GitHub section reports the failure and the local section also includes the last primary headers docpilot observed.
