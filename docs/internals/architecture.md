@@ -170,6 +170,8 @@ Today's clients are agentic. They list a tree, read a path, decide whether it's 
 
 So ctxpeek leans on what's already there. `list_docs` shows the tree. `fetch_doc` returns the file. The agent decides what's relevant — not a cosine similarity over text we don't own. If a library's docs are too unstructured for that to work, the right answer is to ask the library to write better docs (or contribute an `llms.txt`), not to paper over it with vectors.
 
+This is also why `peek`'s `query` is a **deterministic grep scoped to one named file** (literal or regex), not a similarity search over a corpus: it's a sharper way to navigate a file the agent already chose — `grep` inside an open file, not `query → top-k` across docs we ranked. No embeddings, no hidden relevance model, same reproducible snapshot.
+
 ### Why CDN as a first-class fallback?
 
 Unauthenticated `raw.githubusercontent.com` is rate-limited and offers no documented auth path. jsDelivr permanently caches commit-pinned URLs, so anonymous ctxpeek users can pull thousands of files per hour with zero impact on GitHub's anonymous bucket.

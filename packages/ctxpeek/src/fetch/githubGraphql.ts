@@ -10,6 +10,7 @@
 
 import { RateLimitError } from "../core/index.js";
 import { HttpClient } from "../util/index.js";
+import { buildIssueSearchQuery, type IssueSearchOptions } from "./issueQuery.js";
 import type { RateLimiter } from "./ratelimit.js";
 
 export type GraphqlClientOptions = {
@@ -114,16 +115,10 @@ export class GithubGraphqlClient {
   async searchIssues(
     owner: string,
     repo: string,
-    query: string,
-    opts: {
-      state?: "open" | "closed" | "all";
-      perPage?: number;
-      type?: "issue" | "pr" | "both";
-    } = {},
+    query: string | undefined,
+    opts: IssueSearchOptions = {},
   ): Promise<ReadonlyArray<GraphqlIssueHit>> {
-    const stateClause = opts.state && opts.state !== "all" ? ` state:${opts.state}` : "";
-    const typeClause = opts.type === "issue" ? " type:issue" : opts.type === "pr" ? " type:pr" : "";
-    const q = `repo:${owner}/${repo}${stateClause}${typeClause} ${query} sort:updated-desc`;
+    const q = buildIssueSearchQuery(owner, repo, query, opts);
     const gql = `query DocIssueSearch($q: String!, $first: Int!) {
       search(type: ISSUE, query: $q, first: $first) {
         nodes {
