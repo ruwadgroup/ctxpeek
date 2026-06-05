@@ -472,7 +472,7 @@ If you find a real vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-The current baseline is done: the MCP server, resolver, doc tree/fetch tools, change/changelog helpers, related repo and issue lookup, cache inspection, `doctor`, recipes, multi-forge support, and extension registries are in place.
+**v1.0 is released** ([on npm](https://www.npmjs.com/package/ctxpeek)). The full baseline is in place: the MCP server, resolver, doc tree/fetch tools, in-file grep (`peek`), change/changelog helpers, issue/PR search with filters plus single-item reads (`get_issues`), related-repo discovery, cache inspection, `doctor`, recipes, multi-forge support, and the extension registries. The tool schema is now under [semver](https://semver.org/) — breaking changes to a tool's input or output mean a major bump.
 
 The next roadmap pass is planning work, not a committed release train:
 
@@ -482,7 +482,6 @@ The next roadmap pass is planning work, not a committed release train:
 | Monorepos         | Extend `#subpath` inference beyond npm workspaces and repository-directory metadata; clearer examples/cookbook surfacing and better large-tree behavior. | In progress |
 | Auth + forges     | Harden private-repo paths, document token scopes per forge, and evaluate Codeberg / Gitea / sourcehut adapters.                                          | Scoping     |
 | Ecosystem breadth | More lockfile parsers and registry probes where they materially improve `resolve_repo` and manifest-aware flows.                                         | Backlog     |
-| v1 readiness      | Schema freeze, SLO docs, security review, release hygiene, and sharper compatibility notes for MCP clients.                                              | Backlog     |
 
 What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, a hosted resolver as authority, a curated library registry, or write operations on repos. See [non-goals in the architecture doc](docs/internals/architecture.md#why-this-shape).
 
