@@ -196,7 +196,36 @@ fetch_doc("drizzle-team/drizzle-orm@v0.30.1",
 
 You'll see the tool calls fire in the client UI; the model now has fresh, version-pinned docs in context.
 
-## 4. (Optional) Pre-warm a stack
+## 4. Go deeper: grep a file, or read an issue
+
+Two things the model reaches for once it knows the tree:
+
+**Find something inside a file** — `peek` with a `query` greps the file (literal, or `regex: true`) and returns each match with a few lines of context. It's a deterministic, single-file search — no vector store.
+
+> "In `vercel/next.js`, where does `app/…/route.ts` mention `revalidate`?"
+
+```text
+peek("vercel/next.js", "docs/01-app/04-functions/route.mdx",
+     { query: "revalidate", context: 2 })
+  → every match with line numbers + surrounding context
+```
+
+**Pull up an issue or PR** — `get_issues` searches with filters, or reads one item in full:
+
+> "Find open Drizzle issues labeled `bug` about migrations, then show me #1234."
+
+```text
+get_issues("drizzle-team/drizzle-orm",
+           { query: "migrations", labels: ["bug"], state: "open", sort: "comments" })
+  → filtered, sorted hit list
+
+get_issues("drizzle-team/drizzle-orm", { number: 1234 })
+  → that issue/PR's full body + its top comments
+```
+
+`get_issues` is opt-in per call and uses a separate rate-limit bucket — see [authentication](authentication.md) if you hit limits.
+
+## 5. (Optional) Pre-warm a stack
 
 If you work in a stable stack, pre-warm the cache with `ctxpeek warm`:
 
