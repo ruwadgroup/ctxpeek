@@ -3,6 +3,7 @@
 import type { RepoMetaCache } from "../cache/repoMeta.js";
 import { NotFoundError, RateLimitError } from "../core/index.js";
 import { HttpClient, type HttpRequestInit, type HttpResponse } from "../util/index.js";
+import { buildIssueSearchQuery, type IssueSearchOptions } from "./issueQuery.js";
 import type { RateLimiter } from "./ratelimit.js";
 
 export type RestClientOptions = {
@@ -57,6 +58,26 @@ export type IssueHit = {
   readonly updatedAt: string;
   readonly author: string;
   readonly bodyPreview: string;
+};
+
+export type IssueComment = {
+  readonly author: string;
+  readonly createdAt: string;
+  readonly body: string;
+};
+
+export type IssueDetail = {
+  readonly number: number;
+  readonly title: string;
+  readonly state: string;
+  readonly isPullRequest: boolean;
+  readonly url: string;
+  readonly author: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly body: string;
+  readonly comments: ReadonlyArray<IssueComment>;
+  readonly totalComments: number;
 };
 
 export class GithubRestClient {
@@ -346,17 +367,11 @@ export class GithubRestClient {
   async searchIssues(
     owner: string,
     repo: string,
-    query: string,
-    opts: {
-      state?: "open" | "closed" | "all";
-      perPage?: number;
-      type?: "issue" | "pr" | "both";
-    } = {},
+    query: string | undefined,
+    opts: IssueSearchOptions = {},
   ): Promise<ReadonlyArray<IssueHit>> {
-    const stateClause = opts.state && opts.state !== "all" ? ` state:${opts.state}` : "";
-    const typeClause = opts.type === "issue" ? " type:issue" : opts.type === "pr" ? " type:pr" : "";
-    const q = encodeURIComponent(`repo:${owner}/${repo}${stateClause}${typeClause} ${query}`);
-    const url = `${this.baseUrl}/search/issues?q=${q}&per_page=${opts.perPage ?? 5}&sort=updated&order=desc`;
+    const q = encodeURIComponent(buildIssueSearchQuery(owner, repo, query, opts));
+    const url = `${this.baseUrl}/search/issues?q=${q}&per_page=${opts.perPage ?? 5}`;
     const res = await this.request(url);
     if (res.status === 403 || res.status === 429) {
       throw new RateLimitError("GitHub search rate limit reached");
@@ -383,6 +398,66 @@ export class GithubRestClient {
       updatedAt: item.updated_at,
       author: item.user.login,
       bodyPreview: (item.body ?? "").slice(0, 280),
+    }));
+  }
+
+  /**
+   * Fetch a single issue or PR with its full body. The issues endpoint serves
+   * PRs too (a PR is an issue), so this works for both. Comments are fetched
+   * separately via {@link getIssueComments}.
+   */
+  async getIssue(owner: string, repo: string, number: number): Promise<IssueDetail> {
+    const what = `${owner}/${repo}#${number}`;
+    const res = await this.request(`${this.baseUrl}/repos/${owner}/${repo}/issues/${number}`);
+    this.assertSuccess(res, what);
+    const data = JSON.parse(res.body.toString("utf8")) as {
+      number: number;
+      title: string;
+      state: string;
+      pull_request?: object;
+      html_url: string;
+      user: { login: string } | null;
+      created_at: string;
+      updated_at: string;
+      body: string | null;
+      comments?: number;
+    };
+    return {
+      number: data.number,
+      title: data.title,
+      state: data.state,
+      isPullRequest: Boolean(data.pull_request),
+      url: data.html_url,
+      author: data.user?.login ?? "",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      body: data.body ?? "",
+      comments: [],
+      totalComments: data.comments ?? 0,
+    };
+  }
+
+  /** First `perPage` comments on an issue/PR (chronological; GitHub's order). */
+  async getIssueComments(
+    owner: string,
+    repo: string,
+    number: number,
+    perPage: number,
+  ): Promise<ReadonlyArray<IssueComment>> {
+    const res = await this.request(
+      `${this.baseUrl}/repos/${owner}/${repo}/issues/${number}/comments?per_page=${perPage}`,
+    );
+    if (res.status === 404) return [];
+    this.assertSuccess(res, `${owner}/${repo}#${number}/comments`);
+    const arr = JSON.parse(res.body.toString("utf8")) as Array<{
+      user: { login: string } | null;
+      created_at: string;
+      body: string | null;
+    }>;
+    return arr.map((c) => ({
+      author: c.user?.login ?? "",
+      createdAt: c.created_at,
+      body: c.body ?? "",
     }));
   }
 

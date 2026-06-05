@@ -313,11 +313,14 @@ list_docs     // Markdown tree of docs files, with size hints, freshness badges,
               // "what changed after the model's training cutoff?".
 fetch_doc     // One file at a pinned commit, YAML frontmatter + body. Supports
               // `lines` / `head_bytes` for partial reads.
-peek          // First N lines of a file before committing to a full fetch.
+peek          // Quick look at a file: first N lines, or pass `query` to grep within it
+              // (literal/regex) and get every match with context. Per-line + match caps;
+              // binary/empty files are reported, not dumped.
 get_changes   // Unified diff for one file across two refs.
 changelog     // Slice CHANGELOG.md / HISTORY.md between two refs.
 related_repos // Scrape README + llms.txt for github.com peer links — "often used with…".
-get_issues    // Search a repo's issues / PRs (separate /search/issues bucket, 30/min).
+get_issues    // Search issues / PRs with filters (labels, author, sort, since…), or pass
+              // `number` to read one in full — body + top comments. Separate rate bucket.
 cache_status  // Diagnostic: cache hits, sizes, snapshot sha, last revalidate.
 rate_limits   // GitHub buckets; pass `details: true` for local throttle internals.
 ```

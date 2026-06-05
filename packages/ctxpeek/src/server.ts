@@ -177,7 +177,8 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
   });
 
   registerSimpleTool(server, "peek", peekInput, {
-    description: "First N lines of a doc file. Cheaper than `fetch_doc` for a quick look.",
+    description:
+      "Quick look at a doc file. Default: first `n` lines. Pass `query` to grep within the file (literal, or `regex: true`) and get every match with `context` lines around it — deterministic, scoped to this one file. `max_line_length` caps long lines; `max_matches` caps results. Binary/empty files are reported, not dumped.",
     handler: buildPeekTool(ctx),
   });
 
@@ -208,7 +209,8 @@ export async function runMcpServer(argv: ReadonlyArray<string> = []): Promise<vo
   });
 
   registerSimpleTool(server, "get_issues", getIssuesInput, {
-    description: "Search a repo's issues/PRs matching a query. Opt-in per call (separate rate-limit bucket).",
+    description:
+      "Search a repo's issues/PRs, or read one in full. Search with `query` + filters (`labels`, `author`, `assignee`, `state`, `type`, `since`, `sort`, `order`). Or pass `number` to read that issue/PR's full body plus its first `comments` comments. Opt-in per call (separate rate-limit bucket).",
     handler: buildGetIssuesTool(ctx),
   });
 

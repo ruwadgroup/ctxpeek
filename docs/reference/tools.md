@@ -118,16 +118,56 @@ Files >200 KB without `lines` / `head_bytes` get a 4 KB preview plus an approxim
 
 ---
 
-## `peek(repo, path, n?)`
+## `peek(repo, path, opts?)`
 
-Cheap preview — first N lines.
+A cheap look at one file. Two modes:
+
+- **Head** (default) — the first `n` lines.
+- **Grep** — pass `query` to find every match inside the file and return each with `context` lines
+  around it. The search is a deterministic literal (or `regex: true`) match scoped to this one named
+  file — navigation, not a vector store. See
+  [Why no semantic search](../internals/architecture.md#why-no-semantic-search-or-vector-store-a-deliberate-choice).
 
 ```ts
 {
   repo: string
   path: string
-  n?: number  // default 40
+  n?: number               // head mode: leading lines. default 40, max 2000
+  query?: string           // grep mode: substring (or regex). switches to grep
+  regex?: boolean          // treat query as a JS regex. default false
+  ignore_case?: boolean    // default true
+  context?: number         // lines around each match. default 3, max 50
+  max_matches?: number     // cap; a note is emitted when exceeded. default 20, max 200
+  max_line_length?: number // truncate long lines (both modes). default 500, max 10000
 }
+```
+
+**Edge cases.** Binary files (NUL byte in the first 8 KB) and empty files are reported, never dumped.
+Over-long lines are truncated with a ` …(+N chars)` marker so a minified line can't blow the context
+window. A query with no matches returns a friendly note (not an error); an invalid regex reports the
+syntax error. The frontmatter `~tokens` reflects the _returned_ payload, not the whole file.
+
+**Grep output**
+
+```markdown
+# Grep: vercel/next.js@v15.0.0:docs/01-routing.mdx — "generateStaticParams" (2 matches in 412 lines / 9183 bytes total)
+
+---
+repo: vercel/next.js
+ref: v15.0.0
+commit: a3b1f7c
+path: docs/01-routing.mdx
+size: 9183
+~tokens: 86
+---
+
+ 86  export const dynamicParams = true
+ 87
+ 88› export async function generateStaticParams() {
+ 89    return posts.map((p) => ({ slug: p.slug }))
+──
+141  // build-time only
+142› generateStaticParams runs during `next build`
 ```
 
 ---
@@ -183,21 +223,53 @@ Scrape README + llms.txt for github.com peer links, ranked by mention count. Use
 
 ---
 
-## `get_issues(repo, query, opts?)`
+## `get_issues(repo, opts)`
 
-Search a repo's open issues / PRs that mention `query`. Uses GitHub's separate `/search/issues` bucket (30/min).
+Two modes:
+
+- **Search** — pass `query` (plus optional filters) to list matching issues / PRs.
+- **Read one** — pass `number` to fetch that issue/PR's full body plus its first `comments` comments.
+
+Opt-in per call; search uses GitHub's separate `/search/issues` bucket (prefers the GraphQL
+5000pt/hr budget when a token is present, REST 30/min otherwise). Provide **either** `query` or
+`number`.
 
 **Input**
 
 ```ts
 {
   repo: string
-  query: string
-  state?: "open" | "closed" | "all"   // default "open"
-  type?: "issue" | "pr" | "both"      // default "both"
-  limit?: number                       // default 5
+  query?: string                       // search text. required unless `number` is set
+  number?: number                      // read-one: this issue/PR in full
+  state?: "open" | "closed" | "all"    // default "open"
+  type?: "issue" | "pr" | "both"       // default "both"
+  labels?: string[]                    // AND; values with spaces are quoted
+  author?: string
+  assignee?: string
+  since?: string                       // ISO date → updated:>=since
+  sort?: "updated" | "created" | "comments"  // default "updated"
+  order?: "asc" | "desc"               // default "desc"
+  limit?: number                       // search results. default 5, max 20
+  comments?: number                    // read-one comments. default 5, max 20
 }
 ```
+
+**Read-one output**
+
+```markdown
+# #1234 PR · open · Fix hydration mismatch
+_@leerob · opened 3d ago · updated 1d ago · 7 comments_
+https://github.com/vercel/next.js/pull/1234
+
+<full body, truncated to a budget if very long>
+
+## Comments (first 5 of 7)
+
+**@someone** · 2d ago
+<comment body>
+```
+
+Comments are returned in GitHub's order (oldest first); open the URL for the full thread.
 
 ---
 
