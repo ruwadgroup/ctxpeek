@@ -4,30 +4,30 @@
 # Owners are notified for review when matching files change.
 # Last matching pattern takes precedence.
 #
-# Solo-maintainer setup for now. When a team forms, swap @tamimbinhakim
-# for @<org>/<team> handles per area.
+# Owned by the @ruwadgroup/maintainers team. Split into per-area teams
+# (e.g. @ruwadgroup/<area>) as the org grows.
 
 # Default — anything not matched below.
-*                                   @tamimbinhakim
+*                                   @ruwadgroup/maintainers
 
 # Packages
-/packages/ctxpeek/                 @tamimbinhakim
-/packages/ctxpeek-core/            @tamimbinhakim
+/packages/ctxpeek/                 @ruwadgroup/maintainers
+/packages/ctxpeek-core/            @ruwadgroup/maintainers
 
 # Subsystems (split out when there are real owners)
-/packages/ctxpeek/src/fetch/       @tamimbinhakim
-/packages/ctxpeek/src/cache/       @tamimbinhakim
-/packages/ctxpeek/src/index/       @tamimbinhakim
-/packages/ctxpeek/src/resolve/     @tamimbinhakim
+/packages/ctxpeek/src/fetch/       @ruwadgroup/maintainers
+/packages/ctxpeek/src/cache/       @ruwadgroup/maintainers
+/packages/ctxpeek/src/index/       @ruwadgroup/maintainers
+/packages/ctxpeek/src/resolve/     @ruwadgroup/maintainers
 
 # CI / build
-/.github/                           @tamimbinhakim
-/.husky/                            @tamimbinhakim
-*.config.js                         @tamimbinhakim
-*.toml                              @tamimbinhakim
+/.github/                           @ruwadgroup/maintainers
+/.husky/                            @ruwadgroup/maintainers
+*.config.js                         @ruwadgroup/maintainers
+*.toml                              @ruwadgroup/maintainers
 
 # Docs
-/docs/                              @tamimbinhakim
-/README.md                          @tamimbinhakim
-/CONTRIBUTING.md                    @tamimbinhakim
-/SECURITY.md                        @tamimbinhakim
+/docs/                              @ruwadgroup/maintainers
+/README.md                          @ruwadgroup/maintainers
+/CONTRIBUTING.md                    @ruwadgroup/maintainers
+/SECURITY.md                        @ruwadgroup/maintainers

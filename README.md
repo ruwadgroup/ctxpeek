@@ -14,8 +14,8 @@
 
 <div align="center">
 
-[![CI](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/ci.yml/badge.svg)](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/codeql.yml/badge.svg)](https://github.com/tamimbinhakim/ctxpeek/actions/workflows/codeql.yml)
+[![CI](https://github.com/ruwadgroup/ctxpeek/actions/workflows/ci.yml/badge.svg)](https://github.com/ruwadgroup/ctxpeek/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ruwadgroup/ctxpeek/actions/workflows/codeql.yml/badge.svg)](https://github.com/ruwadgroup/ctxpeek/actions/workflows/codeql.yml)
 [![npm](https://img.shields.io/npm/v/ctxpeek.svg)](https://www.npmjs.com/package/ctxpeek)
 [![npm downloads](https://img.shields.io/npm/dm/ctxpeek.svg)](https://www.npmjs.com/package/ctxpeek)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/ctxpeek.svg)](https://bundlephobia.com/package/ctxpeek)
@@ -490,7 +490,7 @@ What's deliberately _not_ on the roadmap: a vector store, a hosted docs corpus, 
 ## Development
 
 ```bash
-git clone https://github.com/tamimbinhakim/ctxpeek.git
+git clone https://github.com/ruwadgroup/ctxpeek.git
 cd ctxpeek
 pnpm install
 pnpm build
@@ -508,7 +508,7 @@ ctxpeek is free and built in the open. If your team relies on it, sponsoring cov
 
 <div align="center">
 
-<a href="https://github.com/sponsors/tamimbinhakim"><b>❤︎ &nbsp;Sponsor ctxpeek on GitHub</b></a>
+<a href="https://github.com/sponsors/ruwadgroup"><b>❤︎ &nbsp;Sponsor ctxpeek on GitHub</b></a>
 
 </div>
 

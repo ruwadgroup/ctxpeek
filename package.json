@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "description": "ctxpeek (pronounced Context Peek) is a local-first MCP server for fresh, version-pinned repo docs.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/tamimbinhakim/ctxpeek#readme",
+  "homepage": "https://github.com/ruwadgroup/ctxpeek#readme",
   "bugs": {
-    "url": "https://github.com/tamimbinhakim/ctxpeek/issues"
+    "url": "https://github.com/ruwadgroup/ctxpeek/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tamimbinhakim/ctxpeek.git"
+    "url": "git+https://github.com/ruwadgroup/ctxpeek.git"
   },
   "type": "module",
   "engines": {

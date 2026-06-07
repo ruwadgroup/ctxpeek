@@ -10,7 +10,7 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By particip
 
 For **security issues**, please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
-For everything else, open an issue at <https://github.com/tamimbinhakim/ctxpeek/issues>. Pick the matching template (bug, feature, docs). Include:
+For everything else, open an issue at <https://github.com/ruwadgroup/ctxpeek/issues>. Pick the matching template (bug, feature, docs). Include:
 
 1. The output of `npx -y ctxpeek doctor` (redact your token)
 2. Your MCP client + version
@@ -27,7 +27,7 @@ For everything else, open an issue at <https://github.com/tamimbinhakim/ctxpeek/
 ### Clone & install
 
 ```bash
-git clone https://github.com/tamimbinhakim/ctxpeek.git
+git clone https://github.com/ruwadgroup/ctxpeek.git
 cd ctxpeek
 pnpm install
 pnpm build

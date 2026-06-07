@@ -80,11 +80,11 @@ Additional tools support cheap file previews (`peek`), diffs between refs (`get_
 
 ## Docs
 
-- Main README: <https://github.com/tamimbinhakim/ctxpeek#readme>
-- Getting started: <https://github.com/tamimbinhakim/ctxpeek/blob/main/docs/guides/getting-started.md>
-- Tool reference: <https://github.com/tamimbinhakim/ctxpeek/blob/main/docs/reference/tools.md>
-- Configuration: <https://github.com/tamimbinhakim/ctxpeek/blob/main/docs/reference/configuration.md>
-- Comparison: <https://github.com/tamimbinhakim/ctxpeek/blob/main/docs/comparison.md>
+- Main README: <https://github.com/ruwadgroup/ctxpeek#readme>
+- Getting started: <https://github.com/ruwadgroup/ctxpeek/blob/main/docs/guides/getting-started.md>
+- Tool reference: <https://github.com/ruwadgroup/ctxpeek/blob/main/docs/reference/tools.md>
+- Configuration: <https://github.com/ruwadgroup/ctxpeek/blob/main/docs/reference/configuration.md>
+- Comparison: <https://github.com/ruwadgroup/ctxpeek/blob/main/docs/comparison.md>
 
 ## Development
 

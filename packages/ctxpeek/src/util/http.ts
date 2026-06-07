@@ -28,7 +28,7 @@ export class HttpClient {
   private readonly honorRetryAfter: boolean;
 
   constructor(opts: HttpClientOptions = {}) {
-    this.userAgent = opts.userAgent ?? `ctxpeek/${VERSION} (+https://github.com/tamimbinhakim/ctxpeek)`;
+    this.userAgent = opts.userAgent ?? `ctxpeek/${VERSION} (+https://github.com/ruwadgroup/ctxpeek)`;
     this.defaultTimeoutMs = opts.defaultTimeoutMs ?? 15_000;
     this.honorRetryAfter = opts.honorRetryAfter ?? true;
   }

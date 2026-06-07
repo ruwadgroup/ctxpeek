@@ -101,7 +101,7 @@ This is a token-budget guardrail, not a hard limit.
 
 ## Still stuck?
 
-Open an issue at <https://github.com/tamimbinhakim/ctxpeek/issues> with:
+Open an issue at <https://github.com/ruwadgroup/ctxpeek/issues> with:
 
 1. `npx -y ctxpeek doctor` output (redact your token)
 2. Your MCP client + version

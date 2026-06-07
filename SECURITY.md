@@ -15,7 +15,7 @@ Please **do not** open a public GitHub issue for security reports.
 
 Instead, use one of:
 
-1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/tamimbinhakim/ctxpeek/security/advisories/new>.
+1. **GitHub private vulnerability reporting** — preferred. Open <https://github.com/ruwadgroup/ctxpeek/security/advisories/new>.
 2. Email <security@ctxpeek.dev> with a description and reproduction steps.
 
 We aim to acknowledge receipt within 72 hours and to provide a remediation plan within 7 days for high-severity issues.
