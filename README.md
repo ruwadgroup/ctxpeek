@@ -41,6 +41,9 @@ Your AI assistant learned a library from training data that is months or years o
 So it writes code against an API that moved, invents options that never existed, and hands you snippets for a version you're not running.
 You catch it in review, or worse, in production.
 
+[Context7](https://github.com/upstash/context7) saw this first and solved part of it: a hosted index of curated docs snippets, which already beats stale training data for popular libraries.
+But a hosted corpus can't pin to the exact commit you're on, reach a package inside a monorepo or your own private repo, or reflect a version that shipped an hour ago.
+
 ctxpeek fixes the root cause.
 It is a local MCP server that pulls the actual docs from the actual repo, pinned to the version you name, and hands them to your assistant before it answers.
 You keep working in plain language.
