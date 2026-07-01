@@ -3,12 +3,12 @@
 <p align="center"><strong>(Pronounced Context Peek)</strong></p>
 
 <h3 align="center">
-  Up-to-date library docs for your AI coding assistant.<br />
-  Straight from the source repo, at the exact version you use.
+  Stop shipping code written against the wrong version of a library.<br />
+  Give your AI assistant the real docs, at the exact version you use.
 </h3>
 
 <p align="center">
-  Point it at <code>owner/repo@ref</code> and your assistant reads the real docs.<br />
+  Name a repo like <code>owner/repo@ref</code> and you get answers from the real files.<br />
   No account. No SaaS. No vector store.
 </p>
 
@@ -35,22 +35,24 @@
 
 <br />
 
-## What it does
+## Why you want this
 
-ctxpeek is a local stdio MCP server.
-Add it to your client, then ask your assistant about any public library by its repo.
+Your AI assistant learned a library from training data that is months or years old.
+So it writes code against an API that moved, invents options that never existed, and hands you snippets for a version you're not running.
+You catch it in review, or worse, in production.
 
-When you say _"show me the routing docs from `vercel/next.js@v15.0.0`"_, your assistant fetches the actual file from the actual repo at that commit and works from docs it can trust - not from stale training data.
+ctxpeek fixes the root cause.
+It is a local MCP server that pulls the actual docs from the actual repo, pinned to the version you name, and hands them to your assistant before it answers.
+You keep working in plain language.
+The right files show up underneath.
 
-It also resolves fuzzy names (`"drizzle orm"` → `drizzle-team/drizzle-orm`), so you can name a library the way you'd say it out loud.
+What that gets you:
 
-What you get:
-
-- **Always current.** Reads the live repo at the ref you name - a tag, a branch, or a commit sha. Even a branch you pushed five minutes ago.
-- **Any public repo** on GitHub, GitLab, or Bitbucket. Including your own.
-- **Version-pinned.** `owner/repo@v15.0.0`, `@main`, or `@<sha>` all read the matching git snapshot.
-- **Local and private.** Cache and fetch run on your machine. No telemetry, no query logging.
-- **Free.** Works anonymously, or bring a GitHub token for higher limits.
+- **Answers you can trust.** Your assistant works from the live repo at the ref you name, so its code matches the version you actually run.
+- **The version you pick.** `owner/repo@v15.0.0`, `@main`, or `@<sha>` all read the matching git snapshot, down to a branch you pushed five minutes ago.
+- **Any public repo** on GitHub, GitLab, or Bitbucket, including your own.
+- **Nothing leaves your machine.** The cache and every fetch run locally. No telemetry, no query logging.
+- **Free to run.** Works anonymously, or add a GitHub token for higher rate limits.
 
 <br />
 
@@ -164,18 +166,19 @@ codex mcp add ctxpeek -- npx -y ctxpeek
 
 </details>
 
-### 2. Use it from your assistant
+### 2. Just ask
 
-Just ask. The assistant picks the right ctxpeek tool on its own - no special syntax.
+No special syntax.
+Ask the way you already do, and your assistant picks the right ctxpeek tool on its own.
 
 ```text
 "Set up Drizzle ORM with Postgres in Next.js 15 server actions"
 "Show me the routing docs from vercel/next.js@v15.0.0"
 "Search tailwindlabs/tailwindcss@main for 'arbitrary values'"
-"Use the latest tamimbinhakim/dyadpy@main API to wire up an SSE endpoint"
+"Use the latest vercel/ai@main API to wire up a streaming endpoint"
 ```
 
-When you want to point at a specific repo, ref, or subfolder, use this format:
+When you want to pin an exact repo, ref, or subfolder, name it in this format:
 
 ```text
 [forge:]owner/repo[@ref][#subpath]
@@ -189,9 +192,13 @@ gitlab:gitlab-org/gitlab@master                         // GitLab (alias: gl:)
 bitbucket:atlassian/python-bitbucket                    // Bitbucket (alias: bb:)
 ```
 
+You can also name a library the way you'd say it out loud.
+ctxpeek resolves fuzzy names for you (`"drizzle orm"` → `drizzle-team/drizzle-orm`).
+
 ### Authentication (optional)
 
-ctxpeek works with no token at all. Add a GitHub token only if you hit rate limits.
+ctxpeek works with no token at all.
+Add a GitHub token only if you hit rate limits.
 It looks for one in this order and uses the first it finds:
 
 1. `--token <pat>` flag
@@ -205,7 +212,8 @@ Run `npx -y ctxpeek doctor` to check your setup and see which path won.
 
 ## Tools
 
-Your assistant calls these for you. You rarely need to name them.
+Your assistant calls these for you.
+You rarely need to name them.
 
 ```ts
 resolve_repo  // "drizzle orm" → drizzle-team/drizzle-orm, with the latest release tag.
@@ -226,10 +234,10 @@ Full reference: [`docs/reference/tools.md`](docs/reference/tools.md).
 
 Context7 answers from a **hosted docs corpus**: resolve a library ID, ask about a topic, get curated snippets.
 
-ctxpeek answers from a **git snapshot**: name a repo and ref, and your assistant reads the exact files at that version.
+ctxpeek answers from a **git snapshot**: you name a repo and ref, and your assistant reads the exact files at that version.
 
-That matters when your question depends on _which branch, tag, or commit_ the docs came from - a version that just shipped, a monorepo package, or your own unreleased library.
-If you want ranked snippets across a curated index of popular libraries, Context7 is the better fit.
+The difference shows up when your question depends on _which branch, tag, or commit_ the docs came from: a version that just shipped, a package inside a monorepo, or your own unreleased library.
+If you'd rather have ranked snippets across a curated index of popular libraries, Context7 is the better fit.
 
 Long-form comparison (vs Context7, GitMCP, Ref Tools): [`docs/comparison.md`](docs/comparison.md).
 
@@ -237,7 +245,8 @@ Long-form comparison (vs Context7, GitMCP, Ref Tools): [`docs/comparison.md`](do
 
 ## Configuration
 
-ctxpeek runs with zero config. To customize, drop a `.ctxpeek.toml` in your project or `~/.config/ctxpeek/config.toml`:
+ctxpeek runs with zero config.
+To customize, drop a `.ctxpeek.toml` in your project or `~/.config/ctxpeek/config.toml`:
 
 ```toml
 [cache]
@@ -251,7 +260,7 @@ prefer_cdn = true
 
 Full reference: [`docs/reference/configuration.md`](docs/reference/configuration.md).
 
-**Recipes** let you pre-warm a whole stack of pinned repos with one command - handy for onboarding a team onto a known-good set of versions.
+**Recipes** let you pre-warm a whole stack of pinned repos with one command, handy for putting your team on a known-good set of versions.
 See [`docs/guides/recipes.md`](docs/guides/recipes.md).
 
 <br />
@@ -264,7 +273,8 @@ ctxpeek talks only to the hosts it needs, only when you use them:
 - `gitlab.com`, `api.bitbucket.org` (only for `gitlab:` / `bitbucket:` specs)
 - Package registries like npm and PyPI (only when resolving a fuzzy name)
 
-No telemetry, no analytics. Your queries never leave your machine except as the URL path to those hosts.
+No telemetry, no analytics.
+Your queries never leave your machine except as the URL path to those hosts.
 
 Security posture and threat model: [`SECURITY.md`](SECURITY.md).
 
@@ -298,7 +308,8 @@ Security posture and threat model: [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-ctxpeek is free and built in the open. Setup, conventions, and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+ctxpeek is free and built in the open.
+Setup, conventions, and CI gates live in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 If your team relies on it, [sponsoring](https://github.com/sponsors/ruwadgroup) covers maintenance and the next round of features.
 
@@ -307,16 +318,4 @@ If your team relies on it, [sponsoring](https://github.com/sponsors/ruwadgroup) 
 ## License
 
 [Apache-2.0](LICENSE). Apache over MIT for the explicit patent grant.
-
-<br />
-
-<div align="center">
-
-<sub>Built because the docs your model reads should come from the actual repo, at the version you actually use.</sub>
-
-<br />
-<br />
-
-<sub>by <a href="https://github.com/tamimbinhakim">Tamim Bin Hakim</a></sub>
-
-</div>
+</content>
