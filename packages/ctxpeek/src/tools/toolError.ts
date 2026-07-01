@@ -52,6 +52,16 @@ export function toolErrorResult(toolName: string, err: unknown): CallToolResult 
   };
 }
 
+// zod v4 renders a missing required field as "Invalid input: expected <type>,
+// received undefined". Keep the concise "Required" wording the agent-facing
+// error contract has always used for that case.
+function issueMessage(issue: ZodError["issues"][number]): string {
+  if (issue.code === "invalid_type" && /received undefined$/.test(issue.message)) {
+    return "Required";
+  }
+  return issue.message;
+}
+
 function normalizeToolError(toolName: string, err: unknown): NormalizedToolError {
   if (err instanceof ZodError) {
     return {
@@ -61,7 +71,7 @@ function normalizeToolError(toolName: string, err: unknown): NormalizedToolError
       resetAt: undefined,
       details: err.issues.map((issue) => {
         const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";
-        return `${path}: ${issue.message}`;
+        return `${path}: ${issueMessage(issue)}`;
       }),
       retryable: true,
       suggestions: ["Fix the tool arguments and retry."],

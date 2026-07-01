@@ -63,24 +63,24 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "env-paths": "^3.0.0",
+    "env-paths": "^4.0.0",
     "gray-matter": "^4.0.3",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^5.2.0",
     "proper-lockfile": "^4.1.2",
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
-    "smol-toml": "^1.6.1",
-    "undici": "^6.25.0",
-    "zod": "^3.25.76"
+    "smol-toml": "^1.7.0",
+    "undici": "^8.5.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.19.41",
+    "@types/node": "^26.0.1",
     "@types/proper-lockfile": "^4.1.4",
-    "@vitest/coverage-v8": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.9",
     "msw": "^2.14.6",
-    "tsx": "^4.21.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.6"
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }
